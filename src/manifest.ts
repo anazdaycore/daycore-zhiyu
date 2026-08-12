@@ -1,3 +1,4 @@
+import { SPEAKS } from '@daycore/core';
 import type { KindSpec, Manifest, TokenSpec } from '@daycore/core';
 
 // 纸屿's self-introduction.
@@ -10,7 +11,10 @@ import type { KindSpec, Manifest, TokenSpec } from '@daycore/core';
 
 export const FAMILY_ID = 'zhiyu';
 export const DISPLAY_NAME = '纸屿 · 顺流';
-export const MIN_API = 1;
+// ⚠️ 从 core 取，不再各写一份。四份 `= 1` 曾经同时是错的：core 的 paths.ts
+// 硬写 /api/v2，所以对着 v1 后端每个请求都 404，而这个数字说「能连」。
+// 一个前端如果真的需要比 core 更新的契约，那时候再在这里覆盖它。
+export const MIN_API = SPEAKS.major;
 
 /**
  * The kinds 纸屿 needs and the deployment does not ship.
