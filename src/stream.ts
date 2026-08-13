@@ -144,3 +144,53 @@ export function hourLabel(s: Stream, i: number): Divider | null {
   if (prev && prev.at !== null && Math.floor(prev.at / 60) === hour) return null;
   return { kind: 'hour', text: String(hour).padStart(2, '0') + ':00' };
 }
+
+// ── dates ───────────────────────────────────────────────────────────────────
+//
+// ⚠️ Everything here works in the BROWSER'S local zone. A YYYY-MM-DD string is
+// parsed as local midnight ("2026-08-13T00:00:00"), never as UTC, so a day
+// boundary is the reader's own midnight, not London's. The backend handles the
+// DST wall-clock work (api/FRONTEND_HANDOFF.md §C); these are just calendar
+// arithmetic over the reader's own dates.
+
+/** Local YYYY-MM-DD for a millisecond timestamp. */
+export function dayOf(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** Local midnight, in milliseconds, for a YYYY-MM-DD string. */
+export function dayStartMs(iso: string): number {
+  return new Date(`${iso}T00:00:00`).getTime();
+}
+
+/** The ISO date `n` days after `iso` (n may be negative). */
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  return dayOf(d.getTime());
+}
+
+/** How a date relates to today, for the day divider. */
+export type RelDay = 'yesterday' | 'today' | 'tomorrow' | 'other';
+
+export function relDay(iso: string, today: string): RelDay {
+  if (iso === today) return 'today';
+  if (iso === addDays(today, -1)) return 'yesterday';
+  if (iso === addDays(today, 1)) return 'tomorrow';
+  return 'other';
+}
+
+// A human date via Intl, in the reader's locale (month, day, weekday).
+export function fmtDate(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { month: 'long', day: 'numeric', weekday: 'short' }).format(
+    dayStartMs(iso),
+  );
+}
+
+/** HH:MM from minutes-since-midnight, already in toHM above. */
+export function fmtHM(ms: number): string {
+  const d = new Date(ms);
+  return toHM(d.getHours() * 60 + d.getMinutes());
+}

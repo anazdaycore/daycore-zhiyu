@@ -6,26 +6,12 @@ import { Setting } from './Setting';
 import { boot as bootUp, type Boot } from '@daycore/core';
 import { isFirstRun } from '@daycore/core';
 import { bootstrapCatalog, type Catalog } from '@daycore/core';
-import { manifest } from './manifest';
-
-// ⚠️ The packs 纸屿 SHIPS, in public/locales/. Passed in rather than read from
-// @daycore/core, because each of the four frontends ships a different set — a
-// constant in the shared package would be one frontend's answer imposed on the
-// other three.
-const SHIPPED = ['zh-CN', 'en-US'];
 import * as api from '@daycore/core';
+import { manifest } from './manifest';
+import { applyTheme, initialThemeAttr } from './theme';
 
-// ⚠️ The setting screen comes BEFORE the boot attempt on a fresh install, and
-// after a failed one otherwise. Both directions matter: a first-run install has
-// no address to try, and a broken address must lead back to the field that
-// fixes it rather than to a dead screen with a reload button.
-//
-// ⚠️ Two catalogues, and the split is not incidental. `bootCat` is built from
-// 纸屿's own shipped packs and covers the screens that run before any backend has
-// been reached; `boot.catalog` is built from what the DEPLOYMENT reports it can
-// render and covers everything after. A single catalogue would have to be one
-// or the other — either the setting screen is untranslatable, or the language
-// list is hardcoded, and the second is the rule this whole module exists for.
+const SHIPPED = ['zh-CN', 'en-US'];
+
 function Root() {
   const [phase, setPhase] = useState<'setting' | 'booting' | 'up' | 'failed'>(
     isFirstRun() ? 'setting' : 'booting',
@@ -44,15 +30,14 @@ function Root() {
     bootUp(manifest).then(
       (b) => {
         if (!live) return;
+        document.documentElement.setAttribute('data-theme', initialThemeAttr(b.session.currentTheme));
         setBoot(b);
         setPhase('up');
-        // The theme the session is on. Falls back to the build's default rather
-        // than to nothing — an unthemed first paint reads as a broken install.
-        document.documentElement.setAttribute('data-theme', b.session.currentTheme || 'sky');
+        void api
+          .themes()
+          .then((r) => applyTheme(b.session.currentTheme, r.themes))
+          .catch(() => {});
         if (b.deferred.length) {
-          // Not an error and not silent. An operator has to approve 纸屿's shadow
-          // kind before that one token can be themed; until then the
-          // stylesheet's own value applies and everything else works.
           console.info('waiting on operator approval before these can be themed:', b.deferred.join(', '));
         }
       },
@@ -76,10 +61,7 @@ function Root() {
     };
   }, [phase, bootCat]);
 
-  // Nothing renders before the bootstrap pack lands. It is a same-origin fetch
-  // of a small file, and a flash of untranslated keys is worse than a beat of
-  // nothing.
-  if (!bootCat) return <div className="tg-app" />;
+  if (!bootCat) return <div className="fl-setup" />;
   const t = bootCat.t;
 
   if (phase === 'setting') {
@@ -94,16 +76,16 @@ function Root() {
   if (phase === 'up' && boot) return <App boot={boot} />;
   if (phase === 'failed') {
     return (
-      <div className="tg-app">
-        <div className="tg-frame">
-          <div className="tg-main">
-            <h1 className="tg-title md">{t('boot.failed.title')}</h1>
-            <p className="tg-sub">{err}</p>
-            <div className="tg-actrow">
-              <button className="tg-btn pri" onClick={() => setPhase('setting')}>
+      <div className="fl-setup">
+        <div className="fl-frame">
+          <div className="fl-main">
+            <h1 className="fl-title-big md">{t('boot.failed.title')}</h1>
+            <p className="fl-sub">{err}</p>
+            <div className="fl-actrow">
+              <button className="fl-btn pri" onClick={() => setPhase('setting')}>
                 {t('boot.failed.editAddress')}
               </button>
-              <button className="tg-btn sec" onClick={() => setPhase('booting')}>
+              <button className="fl-btn sec" onClick={() => setPhase('booting')}>
                 {t('boot.failed.retry')}
               </button>
             </div>
@@ -113,10 +95,10 @@ function Root() {
     );
   }
   return (
-    <div className="tg-app">
-      <div className="tg-frame">
-        <div className="tg-main">
-          <p className="tg-sub">{t('boot.connecting')}</p>
+    <div className="fl-setup">
+      <div className="fl-frame">
+        <div className="fl-main">
+          <p className="fl-sub">{t('boot.connecting')}</p>
         </div>
       </div>
     </div>

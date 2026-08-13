@@ -1,53 +1,270 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as api from '@daycore/core';
-import type { Boot } from '@daycore/core';
-import { buildStream, nowMin, type Stream } from './stream';
+import type {
+  Boot,
+  CustomTheme,
+  DayPlan,
+  Material,
+  MaterialCategory,
+  Assignment,
+  MoodCheckin,
+  MoodKind,
+  OperationLog,
+  Proposal,
+  SessionPrefs,
+  TimeBlock,
+  Wish,
+} from '@daycore/core';
+import { compose, phaseOf as composePhaseOf, riverDay, type Item, type Phase, type RiverDay } from './compose';
+import { applyTheme } from './theme';
+import { addDays, fmtHM, nowMin as clockMin } from './stream';
 
-// 纸屿's state. Same discipline as 汀 — no optimistic updates — for the same
-// reason: PATCH /api/plan can be REFUSED with 409 by the plan gate, and a
-// proposal can be answered by another tab between render and tap.
-//
-// ⚠️ It matters MORE here than in 汀. 汀 shows one thing, so a stale entry is
-// one wrong screen; 纸屿 shows the whole day at once, so a stale entry sits in
-// a ledger that otherwise looks authoritative, and "the ledger is what happened"
-// is the entire premise of this paradigm.
+// 纸屿's state. No optimistic updates, for the reason that matters MORE here
+// than anywhere else: the ledger is the whole premise. A stale block sits in a
+// document that otherwise looks authoritative, and "the ledger is what
+// happened" is the product. 409 (locked / petrified / refish_capped) is a real
+// answer the server gives, so every write reads the body and offers the way out.
 
 export interface UndoOffer {
   opId: string;
   label: string;
 }
 
-const UNDO_MS = 4000;
+/** The 409 body api/openapi.yaml names PlanBlocked. */
+export interface PlanBlocked {
+  code: string;
+  confirmable: boolean;
+  lockLevel?: string;
+  lockReason?: string;
+  message?: string;
+  blockId?: string;
+}
 
-export function useStore(boot: Boot) {
+export function blockedOf(e: unknown): PlanBlocked | null {
+  if (e instanceof api.ApiError && e.status === 409 && e.body && typeof e.body === 'object') {
+    const b = e.body as Record<string, unknown>;
+    return {
+      code: String(b.code ?? ''),
+      confirmable: Boolean(b.confirmable),
+      lockLevel: typeof b.lockLevel === 'string' ? b.lockLevel : undefined,
+      lockReason: typeof b.lockReason === 'string' ? b.lockReason : undefined,
+      message: typeof b.message === 'string' ? b.message : undefined,
+      blockId: typeof b.blockId === 'string' ? b.blockId : undefined,
+    };
+  }
+  return null;
+}
+
+function errText(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+const tz = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+};
+
+const UNDO_MS = 6000;
+
+export type CaptureResult =
+  | { kind: 'candidates'; blocks: TimeBlock[] }
+  | { kind: 'notice'; message: string };
+
+/** A block edit that either succeeded (opId for the undo bar) or was refused. */
+export type BlockEdit =
+  | { ok: true; opId: string | null; label: string }
+  | { ok: false; blocked: PlanBlocked };
+
+export interface Store {
+  t: Boot['catalog']['t'];
+  locale: string;
+  availableLocales: string[];
+  assistantName: string;
+  currentTheme: string;
+
+  plans: Record<string, DayPlan>;
+  proposals: Proposal[];
+  moodKinds: MoodKind[];
+  moods: MoodCheckin[];
+  ops: OperationLog[];
+  earlierDays: RiverDay[];
+  items: Item[];
+
+  materials: Material[];
+  categories: MaterialCategory[];
+  assignments: Assignment[];
+  wishes: Wish[];
+  prefs: SessionPrefs | null;
+  customThemes: CustomTheme[];
+
+  busy: boolean;
+  error: string;
+  undo: UndoOffer | null;
+  flash: string | null;
+  today: string;
+  nowMin: number;
+  nowMs: number;
+
+  refresh: () => Promise<void>;
+  loadPanels: () => Promise<void>;
+  expandEarlier: () => Promise<void>;
+  takeBack: () => Promise<void>;
+  undoOp: (opId: string) => Promise<boolean>;
+  clearUndo: () => void;
+  showFlash: (msg: string) => void;
+
+  phaseOf: (b: TimeBlock, date: string) => Phase;
+  complete: (b: TimeBlock, date: string) => Promise<void>;
+  moveToTomorrow: (b: TimeBlock, date: string, confirm?: boolean) => Promise<BlockEdit>;
+  removeBlock: (b: TimeBlock, date: string) => Promise<BlockEdit>;
+  setNote: (b: TimeBlock, date: string, note: string) => Promise<void>;
+  markConflict: (b: TimeBlock, date: string) => Promise<void>;
+  refish: (b: TimeBlock, date: string) => Promise<BlockEdit>;
+  setLock: (b: TimeBlock, date: string, level: 'none' | 'soft' | 'hard') => Promise<BlockEdit>;
+
+  answer: (p: Proposal, accept: boolean) => Promise<void>;
+  take: (p: Proposal, rowId: string) => Promise<void>;
+  recordMood: (moodId: string, note: string) => Promise<void>;
+  captureIntent: (text: string) => Promise<CaptureResult>;
+  addCandidate: (b: TimeBlock) => Promise<void>;
+
+  createWish: (title: string, note: string, effortMin: number | null) => Promise<void>;
+  updateWish: (id: string, changes: { status?: 'active' | 'done' | 'archived' }) => Promise<void>;
+  deleteWish: (id: string) => Promise<void>;
+  deleteMaterial: (id: string) => Promise<void>;
+  setPref: (p: Partial<SessionPrefs>) => Promise<void>;
+  setTheme: (id: string) => Promise<void>;
+  saveTheme: (t: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => Promise<void>;
+  deleteTheme: (id: string) => Promise<void>;
+  setLanguage: (locale: string) => Promise<void>;
+  setAssistantName: (name: string) => Promise<void>;
+
+  moodLabel: (id: string) => MoodKind | undefined;
+  fmtHM: (ms: number) => string;
+}
+
+export const StoreCtx = createContext<Store | null>(null);
+
+export function useStore(): Store {
+  const s = useContext(StoreCtx);
+  if (!s) throw new Error('store not mounted');
+  return s;
+}
+
+export function useAppStore(boot: Boot): Store {
   const t = boot.catalog.t;
-  const [plan, setPlan] = useState<api.DayPlan | null>(null);
-  const [proposals, setProposals] = useState<api.Proposal[]>([]);
-  const [undo, setUndo] = useState<UndoOffer | null>(null);
+  const [plans, setPlans] = useState<Record<string, DayPlan>>({});
+  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [moodKinds, setMoodKinds] = useState<MoodKind[]>([]);
+  const [moods, setMoods] = useState<MoodCheckin[]>([]);
+  const [ops, setOps] = useState<OperationLog[]>([]);
+  const [earlierDays, setEarlierDays] = useState<RiverDay[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [categories, setCategories] = useState<MaterialCategory[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [wishes, setWishes] = useState<Wish[]>([]);
+  const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
+  const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
+  const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
+  const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sky');
+  const [locale, setLocale] = useState(boot.catalog.locale);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [tick, setTick] = useState(() => nowMin());
-  const date = api.todayIso();
+  const [undo, setUndo] = useState<UndoOffer | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [today, setToday] = useState(() => api.todayIso());
+  const [nowMin, setNowMin] = useState(() => clockMin());
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
+  // ⚠️ date must roll over at midnight, not freeze at mount. A ledger that
+  // keeps yesterday's "today" after midnight draws the now line in the wrong
+  // day and re-issues writes against a date the server already left.
   useEffect(() => {
-    const h = setInterval(() => setTick(nowMin()), 30_000);
+    const h = setInterval(() => {
+      setNowMin(clockMin());
+      setNowMs(Date.now());
+      const d = api.todayIso();
+      setToday((prev) => (prev === d ? prev : d));
+    }, 30_000);
     return () => clearInterval(h);
   }, []);
 
   const refresh = useCallback(async () => {
+    const base = api.todayIso();
+    const y = addDays(base, -1);
+    const tm = addDays(base, 1);
     try {
-      const [pl, ps] = await Promise.all([api.planForDate(date), api.proposals()]);
-      setPlan(pl);
+      const [range, ps, kinds, hist, log] = await Promise.all([
+        api.planRange(y, tm),
+        api.proposals(),
+        api.moodKinds(),
+        api.moodHistory(30),
+        api.ops(40),
+      ]);
+      const map: Record<string, DayPlan> = {};
+      for (const p of range) map[p.date] = p;
+      setPlans(map);
       setProposals(ps.proposals ?? []);
+      setMoodKinds(kinds.kinds ?? []);
+      setMoods(hist);
+      setOps(log.ops ?? []);
       setError('');
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errText(e));
     }
-  }, [date]);
+  }, []);
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, today]);
+
+  const loadPanels = useCallback(async () => {
+    try {
+      const [m, c, a, w, p, th] = await Promise.all([
+        api.materials(),
+        api.materialCategories(),
+        api.assignments(),
+        api.wishes(),
+        api.preferences(),
+        api.themes(),
+      ]);
+      setMaterials(m.materials ?? []);
+      setCategories(c.categories ?? []);
+      setAssignments(a.assignments ?? []);
+      setWishes(w.wishes ?? []);
+      setPrefs(p);
+      setCustomThemes(th.themes ?? []);
+      // The session's theme may be a custom one; once the list is here we can
+      // apply its variables (boot only set the builtin fallback).
+      applyTheme(currentTheme, th.themes ?? []);
+    } catch (e) {
+      setError(errText(e));
+    }
+  }, [currentTheme]);
+
+  const expandEarlier = useCallback(async () => {
+    const base = api.todayIso();
+    const y = addDays(base, -1);
+    const from = addDays(y, -(earlierDays.length + 6));
+    const to = addDays(y, -1);
+    try {
+      const range = await api.planRange(from, to);
+      const existing = new Set(earlierDays.map((r) => r.date));
+      const added: RiverDay[] = [];
+      for (const p of range) {
+        if (existing.has(p.date)) continue;
+        added.push(riverDay(p.blocks, p.date));
+      }
+      added.sort((a, b) => b.date.localeCompare(a.date));
+      setEarlierDays((prev) => [...prev, ...added]);
+    } catch (e) {
+      setError(errText(e));
+    }
+  }, [earlierDays]);
 
   const timer = useRef<number | null>(null);
   const offer = useCallback((opId: string, label: string) => {
@@ -57,72 +274,279 @@ export function useStore(boot: Boot) {
   }, []);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
+  const clearUndo = useCallback(() => setUndo(null), []);
+
+  const flashTimer = useRef<number | null>(null);
+  const showFlash = useCallback((msg: string) => {
+    setFlash(msg);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = window.setTimeout(() => setFlash(null), 3200);
+  }, []);
+  useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+
+  const topOpId = useCallback(async (): Promise<string | null> => {
+    try {
+      const { ops: top } = await api.ops(1);
+      return top?.[0]?.id ?? null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const act = useCallback(
-    async (run: () => Promise<unknown>, label: string) => {
+    async (run: () => Promise<unknown>, label: string): Promise<BlockEdit> => {
       setBusy(true);
       setError('');
       try {
         await run();
-        // The op id comes from GET /api/ops after the write — the write
-        // endpoints return the new state, not the operation. An undo bar that
-        // cannot name what it would undo is decoration.
-        let opId: string | null = null;
-        try {
-          const { ops } = await api.ops(1);
-          const top = ops?.[0];
-          opId = top ? top.id : null;
-        } catch {
-          opId = null;
-        }
+        const opId = await topOpId();
         await refresh();
         if (opId) offer(opId, label);
+        return { ok: true, opId, label };
       } catch (e) {
-        setError(e instanceof Error ? e.message : String(e));
+        const blocked = blockedOf(e);
+        if (blocked) {
+          // The menu renders the refusal inline; the error bar is for faults.
+          await refresh();
+          return { ok: false, blocked };
+        }
         await refresh();
+        setError(errText(e));
+        return { ok: false, blocked: { code: 'error', confirmable: false } };
       } finally {
         setBusy(false);
       }
     },
-    [offer, refresh],
+    [offer, refresh, topOpId],
   );
 
   const complete = useCallback(
-    (b: api.TimeBlock) =>
+    (b: TimeBlock, date: string) =>
       act(
         () => api.patchPlan(date, { action: 'update', match: { id: b.id }, changes: { completed: true } }),
         t('undo.completed', { title: b.title }),
+      ).then(() => undefined),
+    [act, t],
+  );
+
+  const moveToTomorrow = useCallback(
+    (b: TimeBlock, date: string, confirm = false) =>
+      act(
+        () =>
+          api.patchPlan(date, {
+            action: 'update',
+            match: { id: b.id },
+            changes: { date: addDays(date, 1), time: b.time },
+            ...(confirm ? { confirm: true } : {}),
+          }),
+        t('undo.moved', { title: b.title }),
       ),
-    [act, date, t],
+    [act, t],
+  );
+
+  const removeBlock = useCallback(
+    (b: TimeBlock, date: string) =>
+      act(
+        () => api.patchPlan(date, { action: 'remove', match: { id: b.id } }),
+        t('undo.removed', { title: b.title }),
+      ),
+    [act, t],
+  );
+
+  const setNote = useCallback(
+    (b: TimeBlock, date: string, note: string) =>
+      act(
+        () => api.patchPlan(date, { action: 'update', match: { id: b.id }, changes: { note } }),
+        t('undo.noted', { title: b.title }),
+      ).then(() => undefined),
+    [act, t],
+  );
+
+  const markConflict = useCallback(
+    (b: TimeBlock, date: string) =>
+      act(() => api.markConflict(date, b.id), t('undo.conflict', { title: b.title })).then(() => undefined),
+    [act, t],
+  );
+
+  const refish = useCallback(
+    (b: TimeBlock, date: string) =>
+      act(
+        () =>
+          api.refishBlock(date, {
+            title: b.title,
+            type: b.type,
+            time: b.time,
+            duration_min: b.duration_min,
+            rescheduled_from: b.id,
+          }),
+        t('undo.refished', { title: b.title }),
+      ),
+    [act, t],
+  );
+
+  const setLock = useCallback(
+    (b: TimeBlock, date: string, level: 'none' | 'soft' | 'hard') =>
+      act(() => api.lockPlanBlock(date, b.id, level), t('undo.locked', { title: b.title })),
+    [act, t],
   );
 
   const answer = useCallback(
-    (p: api.Proposal, accept: boolean) =>
+    (p: Proposal, accept: boolean) =>
       act(
         () => api.respondToProposal(p.id, accept),
         t(accept ? 'undo.accepted' : 'undo.rejected', { title: p.title }),
-      ),
+      ).then(() => undefined),
     [act, t],
   );
 
-  /**
-   * Take one row of a compound card.
-   *
-   * ⚠️ A compound card CANNOT be answered by `answer(p, true)`. The server reads
-   * the choice as a row id, so "accept" matches nothing: the card flips to
-   * accepted, the ops hanging off its rows never run, and the reader watches a
-   * button do nothing — silently, with a 200.
-   *
-   * Every card the daemon producers emit is compound, so this is the ordinary
-   * path rather than an edge case.
-   */
   const take = useCallback(
-    (p: api.Proposal, rowID: string) =>
+    (p: Proposal, rowId: string) =>
       act(
-        () => api.respondToProposalRow(p.id, rowID),
+        () => api.respondToProposalRow(p.id, rowId),
         t('undo.accepted', { title: p.title }),
-      ),
+      ).then(() => undefined),
     [act, t],
   );
+
+  const recordMood = useCallback(
+    (moodId: string, note: string) =>
+      act(() => api.recordMood(moodId, note), t('undo.mood')).then(() => undefined),
+    [act, t],
+  );
+
+  const captureIntent = useCallback(
+    async (text: string): Promise<CaptureResult> => {
+      setBusy(true);
+      setError('');
+      try {
+        const res = await api.planFromText({ description: text, timezone: tz() });
+        if (res.error) return { kind: 'notice', message: res.message ?? res.error };
+        const blocks = (res.blocks ?? []).filter((b) => b && b.title && b.title.trim());
+        if (!blocks.length) return { kind: 'notice', message: t('input.noBlocks') };
+        return { kind: 'candidates', blocks };
+      } catch (e) {
+        setError(errText(e));
+        return { kind: 'notice', message: errText(e) };
+      } finally {
+        setBusy(false);
+      }
+    },
+    [t],
+  );
+
+  const addCandidate = useCallback(
+    (b: TimeBlock) =>
+      act(
+        () =>
+          api.patchPlan(b.date ?? api.todayIso(), {
+            action: 'add',
+            block: {
+              title: b.title,
+              type: b.type ?? 'task',
+              time: b.time ?? null,
+              duration_min: b.duration_min ?? null,
+              note: b.note,
+            },
+          }),
+        t('undo.added', { title: b.title }),
+      ).then(() => undefined),
+    [act, t],
+  );
+
+  const createWish = useCallback(
+    (title: string, note: string, effortMin: number | null) =>
+      act(
+        () => api.createWish({ title, ...(note ? { note } : {}), ...(effortMin != null ? { effortMin } : {}) }),
+        t('undo.wish', { title }),
+      ).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
+  const updateWish = useCallback(
+    (id: string, changes: { status?: 'active' | 'done' | 'archived' }) =>
+      act(() => api.updateWish(id, changes), t('undo.wishEdit')).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
+  const deleteWish = useCallback(
+    (id: string) => act(() => api.deleteWish(id), t('undo.wishDelete')).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
+  const deleteMaterial = useCallback(
+    (id: string) => act(() => api.deleteMaterial(id), t('undo.materialDelete')).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
+  const setPref = useCallback((p: Partial<SessionPrefs>) => {
+    setPrefs((prev) => (prev ? { ...prev, ...p } : prev));
+    return api
+      .patchPreferences(p)
+      .then((next) => setPrefs(next))
+      .catch((e) => setError(errText(e)));
+  }, []);
+
+  const setTheme = useCallback(
+    (id: string) => {
+      setCurrentTheme(id);
+      applyTheme(id, customThemes);
+      return api
+        .setTheme(id)
+        .then(() => undefined)
+        .catch((e) => setError(errText(e)));
+    },
+    [customThemes],
+  );
+
+  const saveTheme = useCallback(
+    async (input: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => {
+      try {
+        const created = await api.saveTheme(input);
+        const list = await api.themes();
+        setCustomThemes(list.themes ?? []);
+        setCurrentTheme(created.id);
+        applyTheme(created.id, list.themes ?? []);
+        await api.setTheme(created.id);
+      } catch (e) {
+        setError(errText(e));
+      }
+    },
+    [],
+  );
+
+  const deleteTheme = useCallback(
+    async (id: string) => {
+      try {
+        await api.deleteTheme(id);
+        const list = await api.themes();
+        setCustomThemes(list.themes ?? []);
+        const next = id === currentTheme ? 'sky' : currentTheme;
+        setCurrentTheme(next);
+        applyTheme(next, list.themes ?? []);
+      } catch (e) {
+        setError(errText(e));
+      }
+    },
+    [currentTheme],
+  );
+
+  const setLanguage = useCallback(async (loc: string) => {
+    api.chooseLocale(loc);
+    setLocale(loc);
+    try {
+      await api.patchSettings({ language: loc });
+    } catch (e) {
+      setError(errText(e));
+    }
+  }, []);
+
+  const setAssistantName = useCallback((name: string) => {
+    setAssistantNameState(name);
+    return api
+      .patchSettings({ assistantName: name })
+      .then(() => undefined)
+      .catch((e) => setError(errText(e)));
+  }, []);
 
   const takeBack = useCallback(async () => {
     if (!undo) return;
@@ -132,13 +556,103 @@ export function useStore(boot: Boot) {
     try {
       await api.revertOp(id);
       await refresh();
+      await loadPanels();
+      showFlash(t('undo.done'));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errText(e));
     } finally {
       setBusy(false);
     }
-  }, [undo, refresh]);
+  }, [undo, refresh, loadPanels, showFlash, t]);
 
-  const stream: Stream = buildStream(plan, proposals, tick);
-  return { stream, undo, busy, error, now: tick, complete, answer, take, takeBack, refresh };
+  const undoOp = useCallback(
+    async (opId: string): Promise<boolean> => {
+      setBusy(true);
+      try {
+        await api.revertOp(opId);
+        await refresh();
+        await loadPanels();
+        showFlash(t('undo.done'));
+        return true;
+      } catch (e) {
+        setError(errText(e));
+        return false;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh, loadPanels, showFlash, t],
+  );
+
+  const moodLabel = useCallback(
+    (id: string) => moodKinds.find((k) => k.id === id),
+    [moodKinds],
+  );
+
+  const phaseOf = useCallback(
+    (b: TimeBlock, date: string) => composePhaseOf(b, date, today, nowMin),
+    [today, nowMin],
+  );
+
+  const items = compose({ plans, proposals, moods, ops, earlierDays, today, nowMs });
+
+  return {
+    t,
+    locale,
+    availableLocales: boot.handshake.locales?.available ?? ['zh-CN'],
+    assistantName,
+    currentTheme,
+    plans,
+    proposals,
+    moodKinds,
+    moods,
+    ops,
+    earlierDays,
+    items,
+    materials,
+    categories,
+    assignments,
+    wishes,
+    prefs,
+    customThemes,
+    busy,
+    error,
+    undo,
+    flash,
+    today,
+    nowMin,
+    nowMs,
+    refresh,
+    loadPanels,
+    expandEarlier,
+    takeBack,
+    undoOp,
+    clearUndo,
+    showFlash,
+    phaseOf,
+    complete,
+    moveToTomorrow,
+    removeBlock,
+    setNote,
+    markConflict,
+    refish,
+    setLock,
+    answer,
+    take,
+    recordMood,
+    captureIntent,
+    addCandidate,
+    createWish,
+    updateWish,
+    deleteWish,
+    deleteMaterial,
+    setPref,
+    setTheme,
+    saveTheme,
+    deleteTheme,
+    setLanguage,
+    setAssistantName,
+    moodLabel,
+    fmtHM,
+  };
 }

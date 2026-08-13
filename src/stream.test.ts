@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayPlan, Proposal, TimeBlock } from '@daycore/core';
-import { buildStream, hourLabel, positionOf, toHM, toMin } from './stream';
+import { addDays, buildStream, dayOf, dayStartMs, hourLabel, positionOf, relDay, toHM, toMin } from './stream';
 
 const b = (o: Partial<TimeBlock> & { id: string; time: string | null }): TimeBlock => ({
   title: o.id,
@@ -166,5 +166,23 @@ describe('hourLabel', () => {
 describe('toHM', () => {
   it('wraps rather than printing 25:00', () => {
     expect(toHM(toMin('23:30') + 60)).toBe('00:30');
+  });
+});
+
+describe('dates', () => {
+  it('addDays crosses month boundaries in the local zone', () => {
+    expect(addDays('2026-08-31', 1)).toBe('2026-09-01');
+    expect(addDays('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('dayOf renders a local YYYY-MM-DD', () => {
+    expect(dayOf(dayStartMs('2026-08-13'))).toBe('2026-08-13');
+  });
+
+  it('relDay names the three neighbours', () => {
+    expect(relDay('2026-08-13', '2026-08-13')).toBe('today');
+    expect(relDay('2026-08-12', '2026-08-13')).toBe('yesterday');
+    expect(relDay('2026-08-14', '2026-08-13')).toBe('tomorrow');
+    expect(relDay('2026-08-10', '2026-08-13')).toBe('other');
   });
 });

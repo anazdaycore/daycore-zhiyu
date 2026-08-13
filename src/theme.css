@@ -598,7 +598,8 @@ body{overflow:hidden}
 
 /* ── 首次设置那一屏 ───────────────────────────────────────────────────────
    跟着 --dc-surface / --dc-line 走，所以它和纸的其余部分一起被主题。 */
-.fl-app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--dc-bg);color:var(--dc-ink);font-family:var(--dc-font,system-ui,-apple-system,"PingFang SC",sans-serif)}
+.fl-setup{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--dc-bg);color:var(--dc-ink);font-family:var(--dc-font,system-ui,-apple-system,"PingFang SC",sans-serif)}
+.fl-frame{flex:1;display:flex;flex-direction:column;min-height:0}
 .fl-main{flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 24px;max-width:640px;margin:0 auto;width:100%}
 .fl-title-big{font-size:30px;font-weight:700;letter-spacing:-.01em;margin:10px 0}
 .fl-title-big.md{font-size:26px}
@@ -611,36 +612,16 @@ body{overflow:hidden}
 .fl-note{margin-top:12px;font-size:12.5px;color:var(--dc-ink-2);border-left:2px solid var(--dc-line);padding-left:10px}
 .fl-select{height:32px;border-radius:var(--dc-r-sm,10px);background:var(--dc-surface);border:1px solid var(--dc-line);color:var(--dc-ink);padding:0 8px;font-size:12.5px}
 
-/* ── 流 ─────────────────────────────────────────────────────────────────── */
-.fl-top{flex:none;display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--dc-line);font-size:12.5px;color:var(--dc-ink-2)}
-.fl-date{font-weight:700;color:var(--dc-ink)}
-.fl-count{font-variant-numeric:tabular-nums}
-.fl-back{margin-left:auto;color:var(--dc-accent);font-size:12.5px}
-.fl-scroll{flex:1;overflow-y:auto;padding:18px;max-width:680px;width:100%;margin:0 auto}
-.fl-hour{position:sticky;top:0;z-index:1;padding:10px 0 6px;font-size:11px;letter-spacing:.16em;color:var(--dc-ink-3);background:linear-gradient(var(--dc-bg) 70%,transparent);font-variant-numeric:tabular-nums}
-.fl-nowline{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--dc-accent);font-size:11px;letter-spacing:.2em}
-.fl-nowline i{flex:1;height:1px;background:var(--dc-accent);opacity:.45}
-.fl-card{position:relative;background:var(--dc-surface);border:1px solid var(--dc-line);border-radius:var(--dc-r-card,14px);padding:12px 14px;margin:8px 0}
-.fl-card.past{opacity:.62;filter:saturate(.7)}
-.fl-card.lk-hard{border-color:color-mix(in srgb,var(--dc-ink) 22%,transparent);padding-left:20px}
-.fl-card.lk-hard::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:color-mix(in srgb,var(--dc-accent) 40%,transparent)}
-.fl-row{display:flex;align-items:baseline;gap:10px}
-.fl-time{font-variant-numeric:tabular-nums;color:var(--dc-ink-2);font-size:12.5px;min-width:42px}
-.fl-title{font-size:15px;font-weight:600;text-wrap:pretty}
-.fl-title.is-done{text-decoration:line-through;color:var(--dc-ink-3)}
-.fl-meta{display:flex;gap:10px;margin-top:6px;font-size:11.5px;color:var(--dc-ink-3);flex-wrap:wrap;align-items:center}
-.fl-acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-.fl-btn{height:32px;padding:0 14px;border-radius:999px;border:1px solid var(--dc-line);background:var(--dc-surface-2,transparent);font-size:12.5px;font-weight:600;color:var(--dc-ink-2)}
-.fl-btn:hover{color:var(--dc-ink)}
+/* ── 首次设置 / 启动屏的按钮与杂项（流里用 dc4-*，这里只补设置屏要的） ── */
+.fl-actrow{display:flex;gap:10px;margin-top:18px}
+.fl-meta{display:flex;gap:10px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.fl-acts{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.fl-btn{height:40px;padding:0 18px;border-radius:999px;border:1px solid var(--dc-line);background:var(--dc-surface);font-size:14px;font-weight:600;color:var(--dc-ink);cursor:pointer}
+.fl-btn:hover{background:var(--dc-surface-2)}
 .fl-btn.pri{background:var(--dc-accent);border-color:transparent;color:var(--dc-accent-ink)}
+.fl-btn.sec{background:var(--dc-surface);color:var(--dc-ink);border:1px solid var(--dc-line)}
+.fl-btn.sm{height:30px;padding:0 12px;font-size:12.5px}
 .fl-btn:disabled{opacity:.5;cursor:default}
-.fl-prop{position:relative;margin:10px 0;padding:14px 16px;border-radius:var(--dc-r-card,14px);background:linear-gradient(166deg,var(--note-hi,var(--dc-surface-2)),var(--note,var(--dc-surface)));border:1px solid var(--dc-line);box-shadow:0 1px 0 color-mix(in srgb,var(--dc-ink) 6%,transparent)}
-.fl-prop-eye{font-size:11px;letter-spacing:.16em;color:var(--dc-accent);font-weight:700}
-.fl-prop-title{font-size:15px;font-weight:650;margin-top:6px;text-wrap:pretty}
-.fl-prop-sum{margin-top:6px;font-size:13px;color:var(--dc-ink-2);line-height:1.65}
-.fl-undo{display:flex;align-items:center;gap:12px;padding:9px 18px;background:var(--dc-surface);border-bottom:1px solid var(--dc-line);font-size:12.5px}
-.fl-undo button{margin-left:auto;color:var(--dc-accent);font-weight:650}
-.fl-err{margin:0;padding:9px 18px;font-size:12.5px;color:var(--dc-err)}
-.fl-blank{padding:60px 0;text-align:center}
-.fl-blank h1{font-size:22px;font-weight:650}
-.fl-blank p{margin-top:10px;color:var(--dc-ink-2);font-size:14px}
+/* 流里的错误行 + 陪伴里的思考灰字 */
+.fl-errline{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:30;max-width:min(520px,92vw);background:var(--dc-err);color:#fff;border-radius:12px;padding:8px 14px;font-size:12.5px;box-shadow:var(--dc-e3)}
+.fl-reason{font-size:11.5px;color:var(--dc-ink-3);border-left:2px solid var(--dc-line);padding:4px 0 4px 10px;margin-top:6px;white-space:pre-wrap}

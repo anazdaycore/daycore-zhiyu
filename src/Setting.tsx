@@ -57,7 +57,7 @@ export function Setting({
   }
 
   return (
-    <div className="fl-app">
+    <div className="fl-setup">
       <div className="fl-frame">
         <div className="fl-main">
           <div className="fl-eyebrow">
