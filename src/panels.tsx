@@ -52,7 +52,7 @@ function Panel({
 function Materials({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
-  useEffect(() => { void s.loadPanels(); }, [s]);
+  useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   const catName = (id: string) => s.categories.find((c) => c.id === id)?.name ?? id;
   return (
     <Panel title={t('mat.title')} icon="book" onClose={onClose} label="materials">
@@ -91,7 +91,7 @@ function Outlook({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
   const [wish, setWish] = useState('');
-  useEffect(() => { void s.loadPanels(); }, [s]);
+  useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   const active = s.wishes.filter((w) => w.status === 'active');
   const addWish = () => {
     const title = wish.trim();
@@ -415,7 +415,7 @@ function Settings({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState(s.assistantName);
   const [desc, setDesc] = useState('');
   const [genErr, setGenErr] = useState('');
-  useEffect(() => { void s.loadPanels(); }, [s]);
+  useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
 
   const swOf = (th: CustomTheme): [string, string] => [
     th.variables['--dc-accent'] ?? '#888',
