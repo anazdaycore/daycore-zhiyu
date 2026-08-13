@@ -131,7 +131,7 @@ function Flow() {
           <div className="fl-en tone-acc" key={it.key}>
             <span className="gut">{it.proposal.start ?? fmtHM(it.at)}</span>
             <span className="dot"></span>
-            <PropInsert p={it.proposal} />
+            <PropInsert p={it.proposal} onFollow={() => setPanel('companion')} />
           </div>
         );
       case 'wither':

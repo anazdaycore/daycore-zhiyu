@@ -186,5 +186,6 @@
   "undo.wishEdit": "改了一笔愿望",
   "undo.wishDelete": "放下了一个愿望",
   "undo.materialDelete": "移出资料",
-  "undo.done": "已撤销"
+  "undo.done": "已撤销",
+  "prop.followUp": "追问"
 }

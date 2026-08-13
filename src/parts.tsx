@@ -314,7 +314,7 @@ function EntryMenu({
   );
 }
 
-function PropInsert({ p }: { p: Proposal }) {
+function PropInsert({ p, onFollow }: { p: Proposal; onFollow?: () => void }) {
   const s = useStore();
   const t = s.t;
   if (p.state !== 'pending') return null;
@@ -381,6 +381,11 @@ function PropInsert({ p }: { p: Proposal }) {
         <button className="dc4-btn sm sec" onClick={() => void s.answer(p, false)}>
           {t('prop.reject')}
         </button>
+        {onFollow && (
+          <button className="dc4-btn sm ghost" onClick={onFollow}>
+            {t('prop.followUp')}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -392,7 +397,7 @@ function OpLine({ op }: { op: OperationLog }) {
   const verb = useMemo(() => opVerb(op.action, s.t), [op.action, s.t]);
   return (
     <div className="fl-line">
-      <span className="ic">
+      <span className="ic" style={{ color: domainColor(op.domain) }}>
         <Icon n={opIcon(op.action)} size={13} />
       </span>
       <span className="lb">
@@ -603,6 +608,15 @@ function CandidatesOverlay({ blocks, onClose }: { blocks: TimeBlock[]; onClose: 
       </div>
     </div>
   );
+}
+
+// The river colours its bands by domain — schedule/habit/archive/care/system.
+function domainColor(domain?: string): string {
+  if (domain === 'schedule') return 'var(--dc-accent)';
+  if (domain === 'habit') return 'var(--dc-ok)';
+  if (domain === 'archive') return 'var(--dc-warn)';
+  if (domain === 'care') return 'var(--dc-accent-2)';
+  return 'var(--dc-ink-3)';
 }
 
 const opIcon = (action: string): string => {

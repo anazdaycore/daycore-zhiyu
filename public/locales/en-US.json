@@ -186,5 +186,6 @@
   "undo.wishEdit": "Edited a wish",
   "undo.wishDelete": "Dropped a wish",
   "undo.materialDelete": "Removed a material",
-  "undo.done": "Undone"
+  "undo.done": "Undone",
+  "prop.followUp": "Ask why"
 }
