@@ -48,7 +48,7 @@ function Root() {
         setPhase('up');
         // The theme the session is on. Falls back to the build's default rather
         // than to nothing — an unthemed first paint reads as a broken install.
-        document.documentElement.setAttribute('data-dc', b.session.currentTheme || 'sky');
+        document.documentElement.setAttribute('data-theme', b.session.currentTheme || 'sky');
         if (b.deferred.length) {
           // Not an error and not silent. An operator has to approve 纸屿's shadow
           // kind before that one token can be themed; until then the
