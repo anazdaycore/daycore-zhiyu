@@ -332,13 +332,32 @@ export function useAppStore(boot: Boot): Store {
   const moveToTomorrow = useCallback(
     (b: TimeBlock, date: string, confirm = false) =>
       act(
-        () =>
-          api.patchPlan(date, {
-            action: 'update',
+        async () => {
+          // ⚠️ A `date` inside patch changes is a silent no-op — verified live:
+          // PATCH /api/plan update with changes:{date:…} answers 200 but the
+          // block stays in its own day's document. A move is remove + add.
+          // Remove goes FIRST so a gate refusal (soft/hard/petrified) rejects
+          // before anything has moved, and the soft-lock confirm flag rides on
+          // the remove. If the add then fails, the remove's op is the ledger
+          // backstop the undo bar can still reach.
+          await api.patchPlan(date, {
+            action: 'remove',
             match: { id: b.id },
-            changes: { date: addDays(date, 1), time: b.time },
             ...(confirm ? { confirm: true } : {}),
-          }),
+          });
+          await api.patchPlan(addDays(date, 1), {
+            action: 'add',
+            block: {
+              id: b.id + '-tmr-' + Date.now().toString(36),
+              time: b.time,
+              title: b.title,
+              type: b.type,
+              duration_min: b.duration_min,
+              ...(b.time_mode ? { time_mode: b.time_mode } : {}),
+              ...(b.timezone ? { timezone: b.timezone } : {}),
+            },
+          });
+        },
         t('undo.moved', { title: b.title }),
       ),
     [act, t],
