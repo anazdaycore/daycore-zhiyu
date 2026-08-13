@@ -120,21 +120,39 @@ export function App({ boot }: { boot: Boot }) {
                       </span>
                     </div>
                   )}
+                  {/* ⚠️ A card with rows is a menu: "accept" matches no row id,
+                      so answering it that way settles the card without running
+                      anything it offered. */}
                   <div className="fl-acts">
-                    <button
-                      className="fl-btn pri"
-                      disabled={s.busy}
-                      onClick={() => e.proposal && void s.answer(e.proposal, true)}
-                    >
-                      {t('prop.accept')}
-                    </button>
-                    <button
-                      className="fl-btn"
-                      disabled={s.busy}
-                      onClick={() => e.proposal && void s.answer(e.proposal, false)}
-                    >
-                      {t('prop.reject')}
-                    </button>
+                    {e.proposal?.rows?.length ? (
+                      e.proposal.rows.map((row) => (
+                        <button
+                          key={row.id}
+                          className="fl-btn"
+                          disabled={s.busy}
+                          onClick={() => e.proposal && void s.take(e.proposal, row.id)}
+                        >
+                          {row.label}
+                        </button>
+                      ))
+                    ) : (
+                      <>
+                        <button
+                          className="fl-btn pri"
+                          disabled={s.busy}
+                          onClick={() => e.proposal && void s.answer(e.proposal, true)}
+                        >
+                          {t('prop.accept')}
+                        </button>
+                        <button
+                          className="fl-btn"
+                          disabled={s.busy}
+                          onClick={() => e.proposal && void s.answer(e.proposal, false)}
+                        >
+                          {t('prop.reject')}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </article>
               )}
