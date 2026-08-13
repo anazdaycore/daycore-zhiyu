@@ -79,8 +79,8 @@ export function App({ boot }: { boot: Boot }) {
               )}
 
               {e.kind === 'block' && e.block && (
-                <article className={'fl-card ' + where + (e.block.lockLevel === 'hard' ? ' lk-hard' : '')}>
-                  {e.block.lockLevel === 'hard' && <i className="fl-pin" title={t('entry.pinned')} />}
+                <article className={'fl-card ' + where + (e.block.lock_level === 'hard' ? ' lk-hard' : '')}>
+                  {e.block.lock_level === 'hard' && <i className="fl-pin" title={t('entry.pinned')} />}
                   <div className="fl-row">
                     <span className="fl-time">{e.block.time ?? ''}</span>
                     <span className={'fl-title' + (e.block.completed ? ' is-done' : '')}>
