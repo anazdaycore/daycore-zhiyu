@@ -52,10 +52,51 @@ function Panel({
 function Materials({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [cat, setCat] = useState('note');
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   const catName = (id: string) => s.categories.find((c) => c.id === id)?.name ?? id;
+  const enabledCats = s.categories.filter((c) => c.enabled);
+  const submit = () => {
+    const ttl = title.trim();
+    if (!ttl) return;
+    void s.createMaterial({ title: ttl, body: body.trim() || undefined, category: cat, source: 'user' });
+    setTitle('');
+    setBody('');
+  };
   return (
     <Panel title={t('mat.title')} icon="book" onClose={onClose} label="materials">
+      <div className="fl-sec">{t('mat.addSection')}</div>
+      <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 7 }}>
+        <input
+          className="dc4-input"
+          style={{ height: 36, fontSize: 13 }}
+          placeholder={t('mat.addTitle')}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+        <input
+          className="dc4-input"
+          style={{ height: 36, fontSize: 13 }}
+          placeholder={t('mat.addBody')}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+        />
+        <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
+          <select className="dc4-select" style={{ height: 34, fontSize: 12.5 }} value={cat} onChange={(e) => setCat(e.target.value)}>
+            {enabledCats.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <button className="dc4-btn sm" style={{ flex: 'none' }} disabled={!title.trim()} onClick={submit}>
+            <Icon n="plus" size={14} />
+            {t('mat.add')}
+          </button>
+        </div>
+      </div>
       <div className="fl-sec">
         {t('mat.lib')}
         <span className="n">{s.materials.length}</span>

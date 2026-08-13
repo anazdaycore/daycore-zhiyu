@@ -134,6 +134,7 @@ export interface Store {
   createWish: (title: string, note: string, effortMin: number | null) => Promise<void>;
   updateWish: (id: string, changes: { status?: 'active' | 'done' | 'archived' }) => Promise<void>;
   deleteWish: (id: string) => Promise<void>;
+  createMaterial: (m: { title: string; body?: string; summary?: string; category?: string; tags?: string[]; source?: string }) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
   setPref: (p: Partial<SessionPrefs>) => Promise<void>;
   setTheme: (id: string) => Promise<void>;
@@ -492,6 +493,12 @@ export function useAppStore(boot: Boot): Store {
     [act, t, loadPanels],
   );
 
+  const createMaterial = useCallback(
+    (input: { title: string; body?: string; summary?: string; category?: string; tags?: string[]; source?: string }) =>
+      act(() => api.createMaterial(input), t('undo.materialAdd', { title: input.title })).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
   const deleteMaterial = useCallback(
     (id: string) => act(() => api.deleteMaterial(id), t('undo.materialDelete')).then(() => loadPanels()),
     [act, t, loadPanels],
@@ -664,6 +671,7 @@ export function useAppStore(boot: Boot): Store {
     createWish,
     updateWish,
     deleteWish,
+    createMaterial,
     deleteMaterial,
     setPref,
     setTheme,

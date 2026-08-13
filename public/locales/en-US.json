@@ -187,5 +187,10 @@
   "undo.wishDelete": "Dropped a wish",
   "undo.materialDelete": "Removed a material",
   "undo.done": "Undone",
-  "prop.followUp": "Ask why"
+  "prop.followUp": "Ask why",
+  "mat.addSection": "File by hand",
+  "mat.addTitle": "Title (required)",
+  "mat.addBody": "Body (optional)",
+  "mat.add": "File",
+  "undo.materialAdd": "Filed: {title}"
 }
