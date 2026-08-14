@@ -246,5 +246,8 @@
   "auth.passwordShort": "密码至少 8 位",
   "auth.failed": "邮箱或密码对不上，再试一次",
   "auth.welcome": "欢迎回来，{name}",
-  "auth.signedOut": "已退出，回到匿名会话"
+  "auth.signedOut": "已退出，回到匿名会话",
+  "menu.rescheduleByText": "一句话改期…",
+  "menu.reschedulePrefill": "把「{title}」改到…",
+  "set.rename": "重命名"
 }

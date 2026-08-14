@@ -701,6 +701,8 @@ function Settings({ onClose }: { onClose: () => void }) {
   const [bindFor, setBindFor] = useState<{ label: string; token: string } | null>(null);
   const [unbind, setUnbind] = useState<string | null>(null);
   const [delId, setDelId] = useState<string | null>(null);
+  const [renameId, setRenameId] = useState<string | null>(null);
+  const [renVal, setRenVal] = useState('');
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   useEffect(() => () => { applyTheme(s.currentTheme, s.customThemes); }, [s.currentTheme, s.customThemes]);
 
@@ -825,17 +827,48 @@ function Settings({ onClose }: { onClose: () => void }) {
           <div key={th.id} className={'fl-it' + (s.currentTheme === th.id ? ' sel' : '')} style={{ alignItems: 'center' }}>
             <span style={{ width: 26, height: 26, borderRadius: 8, flex: 'none', border: '1px solid rgba(0,0,0,.08)', background: 'linear-gradient(135deg,' + sw[1] + ' 46%,' + sw[0] + ' 54%)' }}></span>
             <div className="bd">
-              <div className="t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {th.name}
-                {th.dark && <span className="fl-tag">{t('paper.dark')}</span>}
-                {s.currentTheme === th.id && <Icon n="check" size={12} style={{ color: 'var(--dc-accent)' }} />}
-              </div>
+              {renameId === th.id ? (
+                <input
+                  className="dc4-input"
+                  style={{ height: 30, fontSize: 12.5 }}
+                  autoFocus
+                  value={renVal}
+                  onChange={(e) => setRenVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && renVal.trim()) {
+                      void s.renameTheme(th.id, renVal.trim());
+                      setRenameId(null);
+                    }
+                    if (e.key === 'Escape') setRenameId(null);
+                  }}
+                  onBlur={() => {
+                    if (renVal.trim()) void s.renameTheme(th.id, renVal.trim());
+                    setRenameId(null);
+                  }}
+                />
+              ) : (
+                <div className="t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {th.name}
+                  {th.dark && <span className="fl-tag">{t('paper.dark')}</span>}
+                  {s.currentTheme === th.id && <Icon n="check" size={12} style={{ color: 'var(--dc-accent)' }} />}
+                </div>
+              )}
             </div>
             {s.currentTheme !== th.id && (
               <button className="x" style={{ opacity: 1, color: 'var(--dc-accent)', fontSize: 11.5, fontWeight: 650 }} onClick={() => applyT(th.id)}>
                 {t('set.apply')}
               </button>
             )}
+            <button
+              className="x"
+              title={t('set.rename')}
+              onClick={() => {
+                setRenameId(th.id);
+                setRenVal(th.name);
+              }}
+            >
+              <Icon n="pencil" size={13} />
+            </button>
             <button
               className="x"
               title={t('set.delete')}

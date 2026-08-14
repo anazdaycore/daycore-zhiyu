@@ -246,5 +246,8 @@
   "auth.passwordShort": "Password needs 8+ characters",
   "auth.failed": "Email or password doesn't match — try again",
   "auth.welcome": "Welcome back, {name}",
-  "auth.signedOut": "Signed out — back to anonymous"
+  "auth.signedOut": "Signed out — back to anonymous",
+  "menu.rescheduleByText": "Reschedule by text…",
+  "menu.reschedulePrefill": "Move \"{title}\" to…",
+  "set.rename": "Rename"
 }

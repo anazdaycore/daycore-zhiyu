@@ -52,6 +52,15 @@ function Flow() {
   const scRef = useRef<HTMLDivElement | null>(null);
   const inRef = useRef<HTMLInputElement | null>(null);
 
+  // 「一句话改期」等预填：放进输入条，不提交，用户改完自己发。
+  useEffect(() => {
+    if (s.prefillText !== null) {
+      setText(s.prefillText);
+      inRef.current?.focus();
+      s.clearPrefill();
+    }
+  }, [s.prefillText, s.clearPrefill]);
+
   const toNow = (smooth: boolean) => {
     const el = document.getElementById('fl-nowline');
     const sc = scRef.current;

@@ -267,6 +267,15 @@ function EntryMenu({
                 {t('menu.moveTomorrow')}
                 {b.lock_level === 'soft' && <span className="fl-lk-dot" title={b.lock_reason}></span>}
               </button>
+              <button
+                onClick={() => {
+                  s.prefill(t('menu.reschedulePrefill', { title: b.title }));
+                  onClose();
+                }}
+              >
+                <Icon n="pencil" />
+                {t('menu.rescheduleByText')}
+              </button>
               {refused && refused.code === 'locked' && !refused.confirmable && (
                 <button
                   onClick={() => {

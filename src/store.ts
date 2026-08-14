@@ -83,7 +83,7 @@ const tz = () => {
   }
 };
 
-const UNDO_MS = 6000;
+const UNDO_MS = 5600;
 
 /** 「展开更早」每次往前挖的天数（原型一次 5 天）。 */
 export const EARLIER_BATCH = 5;
@@ -127,6 +127,7 @@ export interface Store {
   error: string;
   undo: UndoOffer | null;
   flash: string | null;
+  prefillText: string | null;
   today: string;
   nowMin: number;
   nowMs: number;
@@ -138,6 +139,8 @@ export interface Store {
   undoOp: (opId: string) => Promise<boolean>;
   clearUndo: () => void;
   showFlash: (msg: string) => void;
+  prefill: (text: string) => void;
+  clearPrefill: () => void;
 
   phaseOf: (b: TimeBlock, date: string) => Phase;
   complete: (b: TimeBlock, date: string) => Promise<void>;
@@ -166,6 +169,7 @@ export interface Store {
   setTheme: (id: string) => Promise<void>;
   saveTheme: (t: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => Promise<void>;
   deleteTheme: (id: string) => Promise<void>;
+  renameTheme: (id: string, name: string) => Promise<void>;
   setLanguage: (locale: string) => Promise<void>;
   setAssistantName: (name: string) => Promise<void>;
   setPersonaPrompt: (prompt: string) => Promise<void>;
@@ -214,6 +218,7 @@ export function useAppStore(boot: Boot): Store {
   const [error, setError] = useState('');
   const [undo, setUndo] = useState<UndoOffer | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
+  const [prefillText, setPrefillText] = useState<string | null>(null);
   const [today, setToday] = useState(() => api.todayIso());
   const [nowMin, setNowMin] = useState(() => clockMin());
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -323,6 +328,10 @@ export function useAppStore(boot: Boot): Store {
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const clearUndo = useCallback(() => setUndo(null), []);
+
+  // 「一句话改期」等预填：把文本放进底部输入条，不提交。
+  const prefill = useCallback((text: string) => setPrefillText(text), []);
+  const clearPrefill = useCallback(() => setPrefillText(null), []);
 
   const flashTimer = useRef<number | null>(null);
   const showFlash = useCallback((msg: string) => {
@@ -653,6 +662,21 @@ export function useAppStore(boot: Boot): Store {
     [currentTheme],
   );
 
+  const renameTheme = useCallback(
+    async (id: string, name: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      try {
+        await api.patchTheme(id, { name: trimmed });
+        const list = await api.themes();
+        setCustomThemes(list.themes ?? []);
+      } catch (e) {
+        setError(errText(e));
+      }
+    },
+    [],
+  );
+
   const setLanguage = useCallback(async (loc: string) => {
     api.chooseLocale(loc);
     setLocale(loc);
@@ -756,6 +780,7 @@ export function useAppStore(boot: Boot): Store {
     error,
     undo,
     flash,
+    prefillText,
     today,
     nowMin,
     nowMs,
@@ -766,6 +791,8 @@ export function useAppStore(boot: Boot): Store {
     undoOp,
     clearUndo,
     showFlash,
+    prefill,
+    clearPrefill,
     phaseOf,
     complete,
     moveToTomorrow,
@@ -789,6 +816,7 @@ export function useAppStore(boot: Boot): Store {
     setTheme,
     saveTheme,
     deleteTheme,
+    renameTheme,
     setLanguage,
     setAssistantName,
     setPersonaPrompt,
