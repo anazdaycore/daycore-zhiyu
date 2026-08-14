@@ -177,6 +177,10 @@ function Outlook({ onClose }: { onClose: () => void }) {
   const [wish, setWish] = useState('');
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   const active = s.wishes.filter((w) => w.status === 'active');
+  const ordered = [...s.wishes].sort((a, b) => {
+    const rank = (st: string) => (st === 'active' ? 0 : st === 'done' ? 1 : 2);
+    return rank(a.status as string) - rank(b.status as string);
+  });
   const addWish = () => {
     const title = wish.trim();
     if (!title) return;
@@ -230,23 +234,34 @@ function Outlook({ onClose }: { onClose: () => void }) {
         {t('out.wishes')}
         <span className="n">{active.length}</span>
       </div>
-      {active.map((w) => (
-        <div key={w.id} className="fl-it">
-          <Icon n="star" size={14} style={{ color: 'var(--dc-warn)', marginTop: 3 }} />
-          <div className="bd">
-            <div className="t">{w.title}</div>
-            <div className="s">
-              {w.effortMin ? t('out.wishEffort', { n: w.effortMin }) : t('out.wishHint')}
+      {ordered.map((w) => {
+        const st = w.status as string;
+        const isDone = st === 'done';
+        const isDropped = st === 'dropped';
+        return (
+          <div key={w.id} className="fl-it" style={{ alignItems: 'center', opacity: isDropped ? 0.5 : 1 }}>
+            <Icon n="star" size={14} style={{ color: 'var(--dc-warn)', marginTop: 3 }} />
+            <div className="bd">
+              <div className="t" style={isDone ? { textDecoration: 'line-through', color: 'var(--dc-ink-3)' } : undefined}>{w.title}</div>
+              <div className="s">
+                {w.effortMin ? t('out.wishEffort', { n: w.effortMin }) : t('out.wishHint')}
+              </div>
             </div>
+            {isDone && <Icon n="check" size={14} style={{ color: 'var(--dc-ok)' }} />}
+            {isDropped && <span className="fl-tag">{t('out.wishDrop')}</span>}
+            {!isDone && !isDropped && (
+              <>
+                <button className="fl-act ok" title={t('out.wishDone')} onClick={() => void s.updateWish(w.id, { status: 'done' }, t('undo.wishDone', { title: w.title }))}>
+                  <Icon n="check" size={14} />
+                </button>
+                <button className="fl-act" title={t('out.wishDrop')} onClick={() => void s.updateWish(w.id, { status: 'dropped' }, t('undo.wishDrop', { title: w.title }))}>
+                  <Icon n="x" size={13} />
+                </button>
+              </>
+            )}
           </div>
-          <button className="fl-act ok" title={t('out.wishDone')} onClick={() => void s.updateWish(w.id, { status: 'done' }, t('undo.wishDone', { title: w.title }))}>
-            <Icon n="check" size={14} />
-          </button>
-          <button className="fl-act" title={t('out.wishDrop')} onClick={() => void s.updateWish(w.id, { status: 'archived' }, t('undo.wishDrop', { title: w.title }))}>
-            <Icon n="x" size={13} />
-          </button>
-        </div>
-      ))}
+        );
+      })}
     </Panel>
   );
 }
@@ -1087,7 +1102,7 @@ function Rail({ onMore }: { onMore: () => void }) {
       </div>
       <div className="fl-rcard">
         <h5>{t('rail.weekly')}</h5>
-        <p className="fl-rnote">{t('rail.weeklyBody')}</p>
+        <p className="fl-rnote" style={{ whiteSpace: 'pre-wrap' }}>{s.weeklyLetter ? s.weeklyLetter.body : t('rail.weeklyBody')}</p>
       </div>
     </aside>
   );

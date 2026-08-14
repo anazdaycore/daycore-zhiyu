@@ -19,6 +19,7 @@ import type {
   SessionPrefs,
   TimeBlock,
   User,
+  WeeklyLetter,
   Wish,
 } from '@daycore/core';
 
@@ -27,7 +28,7 @@ interface ChannelInfo {
   label: string;
   available: boolean;
 }
-import { compose, phaseOf as composePhaseOf, riverDay, type Item, type Phase, type RiverDay } from './compose';
+import { compose, phaseOf as composePhaseOf, type Item, type Phase, type RiverDay } from './compose';
 import { applyTheme } from './theme';
 import { addDays, fmtHM } from './stream';
 
@@ -86,9 +87,6 @@ const tz = () => {
 
 const UNDO_MS = 5600;
 
-/** 「展开更早」每次往前挖的天数（原型一次 5 天）。 */
-export const EARLIER_BATCH = 5;
-
 export type CaptureResult =
   | { kind: 'candidates'; blocks: TimeBlock[] }
   | { kind: 'notice'; message: string };
@@ -121,6 +119,7 @@ export interface Store {
   memories: MemoryFact[];
   prefs: SessionPrefs | null;
   rhythm: Rhythm | null;
+  weeklyLetter: WeeklyLetter | null;
   customThemes: CustomTheme[];
   channels: ChannelInfo[];
   channelBindings: ChannelBinding[];
@@ -161,7 +160,7 @@ export interface Store {
   addCandidate: (b: TimeBlock) => Promise<void>;
 
   createWish: (title: string, note: string, effortMin: number | null) => Promise<void>;
-  updateWish: (id: string, changes: { status?: 'active' | 'done' | 'archived' }, label?: string) => Promise<void>;
+  updateWish: (id: string, changes: { status?: 'active' | 'done' | 'dropped' }, label?: string) => Promise<void>;
   deleteWish: (id: string) => Promise<void>;
   createMaterial: (m: { title: string; body?: string; summary?: string; category?: string; tags?: string[]; source?: string }) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
@@ -212,6 +211,7 @@ export function useAppStore(boot: Boot): Store {
   const [memories, setMemories] = useState<MemoryFact[]>([]);
   const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
   const [rhythm, setRhythm] = useState<Rhythm | null>(null);
+  const [weeklyLetter, setWeeklyLetter] = useState<WeeklyLetter | null>(null);
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
@@ -274,7 +274,7 @@ export function useAppStore(boot: Boot): Store {
 
   const loadPanels = useCallback(async () => {
     try {
-      const [m, c, a, co, w, mem, p, th, ch, rh] = await Promise.all([
+      const [m, c, a, co, w, mem, p, th, ch, rh, wl] = await Promise.all([
         api.materials(),
         api.materialCategories(),
         api.assignments(),
@@ -285,6 +285,7 @@ export function useAppStore(boot: Boot): Store {
         api.themes(),
         api.channels(),
         api.rhythm(),
+        api.weeklyLetter(),
       ]);
       setMaterials(m.materials ?? []);
       setCategories(c.categories ?? []);
@@ -297,6 +298,7 @@ export function useAppStore(boot: Boot): Store {
       setChannels(ch.channels ?? []);
       setChannelBindings(ch.bindings ?? []);
       setRhythm(rh);
+      setWeeklyLetter(wl.letter ?? null);
       // The session's theme may be a custom one; once the list is here we can
       // apply its variables (boot only set the builtin fallback).
       applyTheme(currentTheme, th.themes ?? []);
@@ -306,27 +308,19 @@ export function useAppStore(boot: Boot): Store {
   }, [currentTheme]);
 
   const expandEarlier = useCallback(async () => {
-    const base = api.todayIsoInTZ(TZ);
-    const y = addDays(base, -1);
-    // 每次往前再挖 EARLIER_BATCH 天（原型一次 5 天）。
-    let earliest = y;
-    for (const r of earlierDays) if (r.date < earliest) earliest = r.date;
-    const from = addDays(earliest, -EARLIER_BATCH);
-    const to = addDays(earliest, -1);
+    const y = addDays(api.todayIsoInTZ(TZ), -1);
     try {
-      const range = await api.planRange(from, to);
-      const existing = new Set(earlierDays.map((r) => r.date));
-      const added: RiverDay[] = [];
-      for (const p of range) {
-        if (existing.has(p.date)) continue;
-        added.push(riverDay(p.blocks, p.date));
-      }
-      added.sort((a, b) => b.date.localeCompare(a.date));
-      setEarlierDays((prev) => [...prev, ...added]);
+      const days = await api.river(15);
+      setEarlierDays(
+        days
+          .filter((d) => d.date < y)
+          .map((d) => ({ date: d.date, count: d.count, mood: d.mood || undefined }))
+          .sort((a, b) => b.date.localeCompare(a.date)),
+      );
     } catch (e) {
       setError(errText(e));
     }
-  }, [earlierDays]);
+  }, [TZ]);
 
   const timer = useRef<number | null>(null);
   const offer = useCallback((opId: string, label: string) => {
@@ -592,7 +586,7 @@ export function useAppStore(boot: Boot): Store {
   );
 
   const updateWish = useCallback(
-    (id: string, changes: { status?: 'active' | 'done' | 'archived' }, label?: string) =>
+    (id: string, changes: { status?: 'active' | 'done' | 'dropped' }, label?: string) =>
       act(() => api.updateWish(id, changes), label ?? t('undo.wishEdit')).then(() => loadPanels()),
     [act, t, loadPanels],
   );
@@ -794,6 +788,7 @@ export function useAppStore(boot: Boot): Store {
     user,
     prefs,
     rhythm,
+    weeklyLetter,
     customThemes,
     channels,
     channelBindings,

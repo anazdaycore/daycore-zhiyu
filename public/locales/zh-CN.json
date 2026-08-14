@@ -36,7 +36,7 @@
   "input.placeholder": "说一句，{name}替你接住",
   "input.hint": "说一句就记下 · 每件事都能撤销",
   "input.noBlocks": "这一句我还没听出要放进哪天——换个说法试试。",
-  "more.earlier": "展开更早的 {n} 天",
+  "more.earlier": "展开更早",
   "river.line": "{n} 笔 · 都在河里，周信会提起",
   "entry.done": "完成",
   "entry.minutes": "{n} 分钟",

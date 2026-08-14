@@ -36,7 +36,7 @@
   "input.placeholder": "Say something, {name} will catch it",
   "input.hint": "Say it and it's written · every step can be undone",
   "input.noBlocks": "I couldn't tell which day that goes to — try another wording.",
-  "more.earlier": "Show {n} more days",
+  "more.earlier": "Show earlier",
   "river.line": "{n} entries · they live in the river, the weekly letter will mention them",
   "entry.done": "Done",
   "entry.minutes": "{n} min",

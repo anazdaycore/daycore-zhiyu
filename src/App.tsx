@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Boot } from '@daycore/core';
 import type { TimeBlock } from '@daycore/core';
 import { Icon } from './icons';
-import { EARLIER_BATCH, StoreCtx, useAppStore, useStore } from './store';
+import { StoreCtx, useAppStore, useStore } from './store';
 import {
   BlockEntry,
   CandidatesOverlay,
@@ -101,7 +101,7 @@ function Flow() {
             <span className="gut">{fmtDate(it.date, s.locale)}</span>
             <span className="dot"></span>
             <div className="fl-river">
-              <span className="e">·</span>
+              <span className="e">{it.mood || '·'}</span>
               <span className="bar" style={{ width: 30 + it.count * 8 }}></span>
               <span>{t('river.line', { n: it.count })}</span>
             </div>
@@ -217,7 +217,7 @@ function Flow() {
           <div className="fl-more">
             <button className="dc4-btn sm ghost" onClick={() => void s.expandEarlier()}>
               <Icon n="chevron-up" size={13} />
-              {t('more.earlier', { n: EARLIER_BATCH })}
+              {t('more.earlier')}
             </button>
           </div>
 
