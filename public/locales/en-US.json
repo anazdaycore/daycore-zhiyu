@@ -225,5 +225,7 @@
   "comp.attachBody": "uploaded file · {n} KB",
   "comp.attachUser": "[attachment] {name}",
   "comp.empty": "Talk to {name} — change a plan, note something, ask anything.",
-  "err.aiNotConfigured": "AI isn't hooked up yet — nothing's broken, this Daycore just hasn't been given a model. Check settings, or try again later."
+  "err.aiNotConfigured": "AI isn't hooked up yet — nothing's broken, this Daycore just hasn't been given a model. Check settings, or try again later.",
+  "comp.thought": "Thought for a bit",
+  "comp.thinkingShort": "thinking…"
 }

@@ -262,6 +262,22 @@ function toolLabel(tool: string, t: Tr): string {
   return t('tool.other');
 }
 
+// 内部独白默认收起：一条「想了一下」折叠条，展开才见原文。
+function ReasonFold({ reasoning }: { reasoning: string }) {
+  const s = useStore();
+  const t = s.t;
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="fl-reasonfold">
+      <button onClick={() => setOpen(!open)}>
+        <Icon n={open ? 'chevron-down' : 'chevron-right'} size={11} />
+        {t('comp.thought')}
+      </button>
+      {open && <div className="fl-reason">{reasoning}</div>}
+    </div>
+  );
+}
+
 function Companion({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
@@ -382,14 +398,16 @@ function Companion({ onClose }: { onClose: () => void }) {
             {msgs.map((m, i) => (
               <div key={i} className={'fl-msg ' + (m.role === 'user' ? 'user' : 'ai')}>
                 {m.content}
-                {m.reasoning && <div className="fl-reason">{m.reasoning}</div>}
+                {m.reasoning && <ReasonFold reasoning={m.reasoning} />}
                 {m.tools.length > 0 && <div className="fl-toolrow">{m.tools.map(toolchip)}</div>}
               </div>
             ))}
             {streaming && (
               <div className="fl-msg ai">
+                {streaming.reasoning && !streaming.text && (
+                  <div className="fl-reason-hint">{t('comp.thinkingShort')}</div>
+                )}
                 {streaming.text}
-                {streaming.reasoning && <div className="fl-reason">{streaming.reasoning}</div>}
                 {streaming.tools.length > 0 && <div className="fl-toolrow">{streaming.tools.map(toolchip)}</div>}
               </div>
             )}
