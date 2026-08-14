@@ -157,7 +157,7 @@ function dueLabel(due: string, t: Tr): string {
   if (date === today) return t('out.today') + ' ' + hm;
   if (date === addDays(today, 1)) return t('out.tomorrow') + ' ' + hm;
   const wd = new Intl.DateTimeFormat(lang, { weekday: 'short' }).format(d);
-  const md = new Intl.DateTimeFormat(lang, { month: 'numeric', day: 'numeric' }).format(d);
+  const md = new Intl.DateTimeFormat(lang, { month: 'long', day: 'numeric' }).format(d);
   return wd + ' ' + md + ' ' + hm;
 }
 
