@@ -57,6 +57,11 @@ function Materials({ onClose }: { onClose: () => void }) {
   const [cat, setCat] = useState('note');
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
   const catName = (id: string) => s.categories.find((c) => c.id === id)?.name ?? id;
+  const memSource = (source: string): string | null => {
+    if (source === 'user') return t('mat.memUser');
+    if (source === 'agent' || source === 'chat') return t('mat.memAgent');
+    return null;
+  };
   const enabledCats = s.categories.filter((c) => c.enabled);
   const submit = () => {
     const ttl = title.trim();
@@ -110,6 +115,27 @@ function Materials({ onClose }: { onClose: () => void }) {
             {m.summary && <div className="s">{m.summary}</div>}
           </div>
           <button className="x" onClick={() => void s.deleteMaterial(m.id)}>
+            <Icon n="trash" size={14} />
+          </button>
+        </div>
+      ))}
+
+      <div className="fl-sec">
+        {t('mat.mem')}
+        <span className="n">{s.memories.length}</span>
+      </div>
+      {s.memories.length === 0 && <div className="fl-line"><span className="lb">{t('mat.memEmpty')}</span></div>}
+      {s.memories.map((m) => (
+        <div key={m.id} className="fl-it">
+          {memSource(m.source) && (
+            <span className="fl-tag" style={{ marginTop: 2, color: 'var(--dc-accent)', background: 'var(--dc-accent-soft)' }}>
+              {memSource(m.source)}
+            </span>
+          )}
+          <div className="bd">
+            <div className="t">{m.fact}</div>
+          </div>
+          <button className="x" onClick={() => void s.deleteMemory(m.id)}>
             <Icon n="trash" size={14} />
           </button>
         </div>
@@ -192,10 +218,10 @@ function Outlook({ onClose }: { onClose: () => void }) {
               {w.effortMin ? t('out.wishEffort', { n: w.effortMin }) : t('out.wishHint')}
             </div>
           </div>
-          <button className="x" title={t('out.wishDone')} style={{ color: 'var(--dc-ok)' }} onClick={() => void s.updateWish(w.id, { status: 'done' })}>
+          <button className="fl-act ok" title={t('out.wishDone')} onClick={() => void s.updateWish(w.id, { status: 'done' }, t('undo.wishDone', { title: w.title }))}>
             <Icon n="check" size={14} />
           </button>
-          <button className="x" title={t('out.wishDrop')} onClick={() => void s.updateWish(w.id, { status: 'archived' })}>
+          <button className="fl-act" title={t('out.wishDrop')} onClick={() => void s.updateWish(w.id, { status: 'archived' }, t('undo.wishDrop', { title: w.title }))}>
             <Icon n="x" size={13} />
           </button>
         </div>
@@ -247,6 +273,7 @@ function Companion({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('');
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const frRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight;
@@ -347,6 +374,11 @@ function Companion({ onClose }: { onClose: () => void }) {
         </div>
         <div className="fl-pbody" ref={bodyRef}>
           <div className="fl-chat">
+            {msgs.length === 0 && !streaming && !typing && !error && (
+              <div className="fl-msg ai" style={{ color: 'var(--dc-ink-3)' }}>
+                {t('comp.empty', { name: s.assistantName })}
+              </div>
+            )}
             {msgs.map((m, i) => (
               <div key={i} className={'fl-msg ' + (m.role === 'user' ? 'user' : 'ai')}>
                 {m.content}
@@ -383,6 +415,22 @@ function Companion({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <div className="fl-pfoot" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="dc4-iconbtn solid" title={t('comp.attach')} onClick={() => frRef.current?.click()}>
+            <Icon n="link" size={16} />
+          </button>
+          <input
+            ref={frRef}
+            type="file"
+            style={{ display: 'none' }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              e.target.value = '';
+              const kb = Math.round(f.size / 1024);
+              void s.createMaterial({ title: f.name, body: t('comp.attachBody', { n: kb }), source: 'upload' });
+              setMsgs((m) => [...m, { role: 'user', content: t('comp.attachUser', { name: f.name }), tools: [] }]);
+            }}
+          />
           <input
             className="dc4-input"
             style={{ borderRadius: 999 }}
@@ -474,7 +522,7 @@ function Settings({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
   const [name, setName] = useState(s.assistantName);
-  const [persona, setPersona] = useState('');
+  const [persona, setPersona] = useState(s.personaPrompt);
   const [desc, setDesc] = useState('');
   const [genErr, setGenErr] = useState('');
   const [busy, setBusy] = useState(false);

@@ -213,5 +213,16 @@
   "set.aiCancel": "Cancel",
   "set.aiSave": "Save & apply",
   "set.aiGenBusy": "Mixing…",
-  "set.deleteConfirm": "Delete?"
+  "set.deleteConfirm": "Delete?",
+  "mat.mem": "Memory · about you",
+  "mat.memEmpty": "Nothing remembered about you yet — chat more, and 小禾 will note it down.",
+  "mat.memUser": "you",
+  "mat.memAgent": "小禾",
+  "undo.memoryDelete": "Forgotten",
+  "undo.wishDone": "Achieved: {title}",
+  "undo.wishDrop": "Let go: {title}",
+  "comp.attach": "Attach",
+  "comp.attachBody": "uploaded file · {n} KB",
+  "comp.attachUser": "[attachment] {name}",
+  "comp.empty": "Talk to {name} — change a plan, note something, ask anything."
 }

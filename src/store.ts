@@ -8,6 +8,7 @@ import type {
   Material,
   MaterialCategory,
   Assignment,
+  MemoryFact,
   MoodCheckin,
   MoodKind,
   OperationLog,
@@ -104,6 +105,7 @@ export interface Store {
   categories: MaterialCategory[];
   assignments: Assignment[];
   wishes: Wish[];
+  memories: MemoryFact[];
   prefs: SessionPrefs | null;
   customThemes: CustomTheme[];
   channels: ChannelInfo[];
@@ -141,10 +143,12 @@ export interface Store {
   addCandidate: (b: TimeBlock) => Promise<void>;
 
   createWish: (title: string, note: string, effortMin: number | null) => Promise<void>;
-  updateWish: (id: string, changes: { status?: 'active' | 'done' | 'archived' }) => Promise<void>;
+  updateWish: (id: string, changes: { status?: 'active' | 'done' | 'archived' }, label?: string) => Promise<void>;
   deleteWish: (id: string) => Promise<void>;
   createMaterial: (m: { title: string; body?: string; summary?: string; category?: string; tags?: string[]; source?: string }) => Promise<void>;
   deleteMaterial: (id: string) => Promise<void>;
+  deleteMemory: (id: string) => Promise<void>;
+  personaPrompt: string;
   setPref: (p: Partial<SessionPrefs>) => Promise<void>;
   setTheme: (id: string) => Promise<void>;
   saveTheme: (t: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => Promise<void>;
@@ -177,12 +181,15 @@ export function useAppStore(boot: Boot): Store {
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
+  const [memories, setMemories] = useState<MemoryFact[]>([]);
   const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
   const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sky');
+  // core's Session type predates personaPrompt on the wire; read it via a cast.
+  const [personaPrompt, setPersonaPromptState] = useState(() => (boot.session as { personaPrompt?: string }).personaPrompt ?? '');
   const [locale, setLocale] = useState(boot.catalog.locale);
 
   const [busy, setBusy] = useState(false);
@@ -237,11 +244,12 @@ export function useAppStore(boot: Boot): Store {
 
   const loadPanels = useCallback(async () => {
     try {
-      const [m, c, a, w, p, th, ch] = await Promise.all([
+      const [m, c, a, w, mem, p, th, ch] = await Promise.all([
         api.materials(),
         api.materialCategories(),
         api.assignments(),
         api.wishes(),
+        api.memory(),
         api.preferences(),
         api.themes(),
         api.channels(),
@@ -250,6 +258,7 @@ export function useAppStore(boot: Boot): Store {
       setCategories(c.categories ?? []);
       setAssignments(a.assignments ?? []);
       setWishes(w.wishes ?? []);
+      setMemories(mem.facts ?? []);
       setPrefs(p);
       setCustomThemes(th.themes ?? []);
       setChannels(ch.channels ?? []);
@@ -498,8 +507,8 @@ export function useAppStore(boot: Boot): Store {
   );
 
   const updateWish = useCallback(
-    (id: string, changes: { status?: 'active' | 'done' | 'archived' }) =>
-      act(() => api.updateWish(id, changes), t('undo.wishEdit')).then(() => loadPanels()),
+    (id: string, changes: { status?: 'active' | 'done' | 'archived' }, label?: string) =>
+      act(() => api.updateWish(id, changes), label ?? t('undo.wishEdit')).then(() => loadPanels()),
     [act, t, loadPanels],
   );
 
@@ -516,6 +525,11 @@ export function useAppStore(boot: Boot): Store {
 
   const deleteMaterial = useCallback(
     (id: string) => act(() => api.deleteMaterial(id), t('undo.materialDelete')).then(() => loadPanels()),
+    [act, t, loadPanels],
+  );
+
+  const deleteMemory = useCallback(
+    (id: string) => act(() => api.deleteMemory(id), t('undo.memoryDelete')).then(() => loadPanels()),
     [act, t, loadPanels],
   );
 
@@ -590,6 +604,7 @@ export function useAppStore(boot: Boot): Store {
   }, []);
 
   const setPersonaPrompt = useCallback((prompt: string) => {
+    setPersonaPromptState(prompt);
     return api
       .patchSettings({ personaPrompt: prompt })
       .then(() => undefined)
@@ -661,6 +676,8 @@ export function useAppStore(boot: Boot): Store {
     categories,
     assignments,
     wishes,
+    memories,
+    personaPrompt,
     prefs,
     customThemes,
     channels,
@@ -697,6 +714,7 @@ export function useAppStore(boot: Boot): Store {
     deleteWish,
     createMaterial,
     deleteMaterial,
+    deleteMemory,
     setPref,
     setTheme,
     saveTheme,

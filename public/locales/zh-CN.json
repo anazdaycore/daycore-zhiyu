@@ -213,5 +213,16 @@
   "set.aiCancel": "取消",
   "set.aiSave": "保存并应用",
   "set.aiGenBusy": "正在调色…",
-  "set.deleteConfirm": "确认删除？"
+  "set.deleteConfirm": "确认删除？",
+  "mat.mem": "记忆 · 关于你自己",
+  "mat.memEmpty": "还没有关于你的记忆——聊天里说多了，小禾会记下。",
+  "mat.memUser": "我记的",
+  "mat.memAgent": "小禾记的",
+  "undo.memoryDelete": "忘掉了",
+  "undo.wishDone": "达成了：{title}",
+  "undo.wishDrop": "放下了：{title}",
+  "comp.attach": "附件",
+  "comp.attachBody": "上传的文件 · {n} KB",
+  "comp.attachUser": "［附件］{name}",
+  "comp.empty": "跟{name}说点什么——改计划、记事情、问一句都行。"
 }
