@@ -17,6 +17,7 @@
   "setting.notDaycore": "连上了，但它不像一个 Daycore 后端：",
   "setting.language": "界面语言",
   "setting.langHint": "先用哪种语言？连上后端之后，它有的语言会更多。",
+  "setting.demoHint": "演示数据：点「试一下」（地址留空）进入后，按 F12 打开控制台贴入演示 token，刷新即可看到示例数据。",
   "cover.title": "纸屿 · 顺流",
   "cover.sub": "一天是一篇你和{name}一起写的日志",
   "day.yesterday": "昨天",

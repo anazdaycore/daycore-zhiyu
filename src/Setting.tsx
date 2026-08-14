@@ -119,6 +119,7 @@ export function Setting({
             </select>
           </div>
           <p className="fl-note">{t('setting.langHint')}</p>
+          <p className="fl-note">{t('setting.demoHint')}</p>
         </div>
       </div>
     </div>

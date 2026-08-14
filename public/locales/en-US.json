@@ -17,6 +17,7 @@
   "setting.notDaycore": "Reached it, but it doesn't look like a Daycore backend: ",
   "setting.language": "Language",
   "setting.langHint": "Which language for now? Once connected, the backend may offer more.",
+  "setting.demoHint": "Demo data: press \"Try it\" (leave the address empty), then open the console with F12, paste the demo token, and reload to see the sample data.",
   "cover.title": "纸屿 · 顺流",
   "cover.sub": "A day is a journal you and {name} write together",
   "day.yesterday": "Yesterday",
