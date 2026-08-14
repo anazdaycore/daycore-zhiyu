@@ -7,7 +7,7 @@ import { boot as bootUp, type Boot } from '@daycore/core';
 import { isFirstRun } from '@daycore/core';
 import { bootstrapCatalog, type Catalog } from '@daycore/core';
 import * as api from '@daycore/core';
-import { manifest } from './manifest';
+import { FAMILY_ID, manifest } from './manifest';
 import { applyTheme, initialThemeAttr } from './theme';
 
 const SHIPPED = ['zh-CN', 'en-US'];
@@ -44,12 +44,12 @@ function Root() {
     bootUp(manifest).then(
       (b) => {
         if (!live) return;
-        document.documentElement.setAttribute('data-theme', initialThemeAttr(b.session.currentTheme));
+        document.documentElement.setAttribute('data-theme', initialThemeAttr(api.themeForFamily(b.session, FAMILY_ID)));
         setBoot(b);
         setPhase('up');
         void api
           .themes()
-          .then((r) => applyTheme(b.session.currentTheme, r.themes))
+          .then((r) => applyTheme(api.themeForFamily(b.session, FAMILY_ID), r.themes))
           .catch(() => {});
         if (b.deferred.length) {
           console.info('waiting on operator approval before these can be themed:', b.deferred.join(', '));

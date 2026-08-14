@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import * as api from '@daycore/core';
+import { FAMILY_ID } from './manifest';
 import type {
   Boot,
   ChannelBinding,
@@ -198,7 +199,7 @@ export function useAppStore(boot: Boot): Store {
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
-  const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sunset');
+  const [currentTheme, setCurrentTheme] = useState(api.themeForFamily(boot.session, FAMILY_ID) || 'sunset');
   const [personaPrompt, setPersonaPromptState] = useState(() => boot.session.personaPrompt ?? '');
   const [locale, setLocale] = useState(boot.catalog.locale);
 
