@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Boot } from '@daycore/core';
 import type { TimeBlock } from '@daycore/core';
 import { Icon } from './icons';
-import { StoreCtx, useAppStore, useStore } from './store';
+import { EARLIER_BATCH, StoreCtx, useAppStore, useStore } from './store';
 import {
   BlockEntry,
   CandidatesOverlay,
@@ -208,7 +208,7 @@ function Flow() {
           <div className="fl-more">
             <button className="dc4-btn sm ghost" onClick={() => void s.expandEarlier()}>
               <Icon n="chevron-up" size={13} />
-              {t('more.earlier')}
+              {t('more.earlier', { n: EARLIER_BATCH })}
             </button>
           </div>
 

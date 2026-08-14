@@ -3,6 +3,7 @@ import * as api from '@daycore/core';
 import type {
   Boot,
   ChannelBinding,
+  Course,
   CustomTheme,
   DayPlan,
   Material,
@@ -82,6 +83,9 @@ const tz = () => {
 
 const UNDO_MS = 6000;
 
+/** 「展开更早」每次往前挖的天数（原型一次 5 天）。 */
+export const EARLIER_BATCH = 5;
+
 export type CaptureResult =
   | { kind: 'candidates'; blocks: TimeBlock[] }
   | { kind: 'notice'; message: string };
@@ -109,6 +113,7 @@ export interface Store {
   materials: Material[];
   categories: MaterialCategory[];
   assignments: Assignment[];
+  courses: Course[];
   wishes: Wish[];
   memories: MemoryFact[];
   prefs: SessionPrefs | null;
@@ -185,6 +190,7 @@ export function useAppStore(boot: Boot): Store {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [categories, setCategories] = useState<MaterialCategory[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [memories, setMemories] = useState<MemoryFact[]>([]);
   const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
@@ -192,7 +198,7 @@ export function useAppStore(boot: Boot): Store {
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
-  const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sky');
+  const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sunset');
   const [personaPrompt, setPersonaPromptState] = useState(() => boot.session.personaPrompt ?? '');
   const [locale, setLocale] = useState(boot.catalog.locale);
 
@@ -248,10 +254,11 @@ export function useAppStore(boot: Boot): Store {
 
   const loadPanels = useCallback(async () => {
     try {
-      const [m, c, a, w, mem, p, th, ch] = await Promise.all([
+      const [m, c, a, co, w, mem, p, th, ch] = await Promise.all([
         api.materials(),
         api.materialCategories(),
         api.assignments(),
+        api.courses(),
         api.wishes(),
         api.memory(),
         api.preferences(),
@@ -261,6 +268,7 @@ export function useAppStore(boot: Boot): Store {
       setMaterials(m.materials ?? []);
       setCategories(c.categories ?? []);
       setAssignments(a.assignments ?? []);
+      setCourses(co.courses ?? []);
       setWishes(w.wishes ?? []);
       setMemories(mem.facts ?? []);
       setPrefs(p);
@@ -278,8 +286,11 @@ export function useAppStore(boot: Boot): Store {
   const expandEarlier = useCallback(async () => {
     const base = api.todayIso();
     const y = addDays(base, -1);
-    const from = addDays(y, -(earlierDays.length + 6));
-    const to = addDays(y, -1);
+    // 每次往前再挖 EARLIER_BATCH 天（原型一次 5 天）。
+    let earliest = y;
+    for (const r of earlierDays) if (r.date < earliest) earliest = r.date;
+    const from = addDays(earliest, -EARLIER_BATCH);
+    const to = addDays(earliest, -1);
     try {
       const range = await api.planRange(from, to);
       const existing = new Set(earlierDays.map((r) => r.date));
@@ -580,7 +591,7 @@ export function useAppStore(boot: Boot): Store {
         await api.deleteTheme(id);
         const list = await api.themes();
         setCustomThemes(list.themes ?? []);
-        const next = id === currentTheme ? 'sky' : currentTheme;
+        const next = id === currentTheme ? 'sunset' : currentTheme;
         setCurrentTheme(next);
         applyTheme(next, list.themes ?? []);
       } catch (e) {
@@ -680,6 +691,7 @@ export function useAppStore(boot: Boot): Store {
     materials,
     categories,
     assignments,
+    courses,
     wishes,
     memories,
     personaPrompt,

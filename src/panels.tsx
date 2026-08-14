@@ -4,6 +4,7 @@ import type { CustomTheme, DecisionCardFrame, ToolResultFrame, ToolStartFrame } 
 import * as api from '@daycore/core';
 import { Icon } from './icons';
 import { isAiNotConfigured, useStore } from './store';
+import { addDays, dayOf } from './stream';
 import { MoodCheck } from './parts';
 import { applyTheme, BUILTIN } from './theme';
 
@@ -144,14 +145,29 @@ function Materials({ onClose }: { onClose: () => void }) {
   );
 }
 
-function dueLabel(due: string, t: (k: string, v?: Record<string, string | number>) => string): string {
-  const d = new Date(due).getTime();
-  if (Number.isNaN(d)) return '';
-  const days = Math.ceil((d - Date.now()) / 86400e3);
-  if (days < 0) return t('out.overdue', { n: -days });
-  if (days === 0) return t('out.today');
-  if (days === 1) return t('out.tomorrow');
-  return t('out.days', { n: days });
+// 原型的绝对式截止标签：今天/明天 HH:MM，其余「周日 8月16日 HH:MM」。
+// locale 跟 document.documentElement.lang，缺省交给 Intl。
+function dueLabel(due: string, t: Tr): string {
+  const d = new Date(due);
+  if (Number.isNaN(d.getTime())) return '';
+  const lang = typeof document !== 'undefined' ? document.documentElement.lang || undefined : undefined;
+  const hm = new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  const date = dayOf(d.getTime());
+  const today = api.todayIso();
+  if (date === today) return t('out.today') + ' ' + hm;
+  if (date === addDays(today, 1)) return t('out.tomorrow') + ' ' + hm;
+  const wd = new Intl.DateTimeFormat(lang, { weekday: 'short' }).format(d);
+  const md = new Intl.DateTimeFormat(lang, { month: 'numeric', day: 'numeric' }).format(d);
+  return wd + ' ' + md + ' ' + hm;
+}
+
+// 原型 radar() 的紧迫度：<26h 橙、<76h accent、其余灰。
+function urgencyOf(dueAt: string | undefined): number {
+  if (!dueAt) return 0;
+  const ms = new Date(dueAt).getTime();
+  if (Number.isNaN(ms)) return 0;
+  const dh = (ms - Date.now()) / 3600e3;
+  return dh < 26 ? 2 : dh < 76 ? 1 : 0;
 }
 
 function Outlook({ onClose }: { onClose: () => void }) {
@@ -196,15 +212,19 @@ function Outlook({ onClose }: { onClose: () => void }) {
       {s.assignments.filter((a) => a.status === 'pending').length === 0 && (
         <div className="fl-line"><span className="lb">{t('out.noDeadlines')}</span></div>
       )}
-      {s.assignments.filter((a) => a.status === 'pending').map((a) => (
-        <div key={a.id} className="fl-it" style={{ alignItems: 'center' }}>
-          <span className="fl-u" data-u="1"></span>
-          <div className="bd">
-            <div className="t">{a.title}</div>
+      {s.assignments.filter((a) => a.status === 'pending').map((a) => {
+        const course = a.courseId ? s.courses.find((c) => c.id === a.courseId) : undefined;
+        return (
+          <div key={a.id} className="fl-it" style={{ alignItems: 'center' }}>
+            <span className="fl-u" data-u={urgencyOf(a.dueAt)}></span>
+            <div className="bd">
+              <div className="t">{a.title}</div>
+              {course && <div className="s">{course.courseCode || course.name}</div>}
+            </div>
+            {a.dueAt && <span className="fl-dl">{dueLabel(a.dueAt, s.t)}</span>}
           </div>
-          {a.dueAt && <span className="fl-dl">{dueLabel(a.dueAt, s.t)}</span>}
-        </div>
-      ))}
+        );
+      })}
       <div className="fl-sec">
         {t('out.wishes')}
         <span className="n">{active.length}</span>

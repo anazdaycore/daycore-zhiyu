@@ -23,11 +23,11 @@ describe('initialThemeAttr', () => {
     expect(initialThemeAttr('night')).toBe('night');
   });
 
-  it('falls back to sky when the session theme is a custom id', () => {
-    expect(initialThemeAttr('theme_abc')).toBe('sky');
+  it('falls back to sunset when the session theme is a custom id', () => {
+    expect(initialThemeAttr('theme_abc')).toBe('sunset');
   });
 
-  it('falls back to sky when nothing is set', () => {
-    expect(initialThemeAttr(undefined)).toBe('sky');
+  it('falls back to sunset when nothing is set', () => {
+    expect(initialThemeAttr(undefined)).toBe('sunset');
   });
 });
