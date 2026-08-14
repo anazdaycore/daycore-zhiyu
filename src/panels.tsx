@@ -4,7 +4,7 @@ import type { CustomTheme, DecisionCardFrame, ToolResultFrame, ToolStartFrame } 
 import * as api from '@daycore/core';
 import { Icon } from './icons';
 import { isAiNotConfigured, useStore } from './store';
-import { addDays, dayOf } from './stream';
+import { addDays, dayIsoInTZ } from './stream';
 import { MoodCheck } from './parts';
 import { applyTheme, BUILTIN } from './theme';
 
@@ -147,17 +147,18 @@ function Materials({ onClose }: { onClose: () => void }) {
 
 // 原型的绝对式截止标签：今天/明天 HH:MM，其余「周日 8月16日 HH:MM」。
 // locale 跟 document.documentElement.lang，缺省交给 Intl。
-function dueLabel(due: string, t: Tr): string {
+function dueLabel(due: string, t: Tr, tz?: string): string {
   const d = new Date(due);
   if (Number.isNaN(d.getTime())) return '';
   const lang = typeof document !== 'undefined' ? document.documentElement.lang || undefined : undefined;
-  const hm = new Intl.DateTimeFormat(lang, { hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
-  const date = dayOf(d.getTime());
-  const today = api.todayIso();
+  const zone = tz || undefined;
+  const hm = new Intl.DateTimeFormat(lang, { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false }).format(d);
+  const date = dayIsoInTZ(d.getTime(), tz);
+  const today = api.todayIsoInTZ(tz);
   if (date === today) return t('out.today') + ' ' + hm;
   if (date === addDays(today, 1)) return t('out.tomorrow') + ' ' + hm;
-  const wd = new Intl.DateTimeFormat(lang, { weekday: 'short' }).format(d);
-  const md = new Intl.DateTimeFormat(lang, { month: 'long', day: 'numeric' }).format(d);
+  const wd = new Intl.DateTimeFormat(lang, { timeZone: zone, weekday: 'short' }).format(d);
+  const md = new Intl.DateTimeFormat(lang, { timeZone: zone, month: 'long', day: 'numeric' }).format(d);
   return wd + ' ' + md + ' ' + hm;
 }
 
@@ -221,7 +222,7 @@ function Outlook({ onClose }: { onClose: () => void }) {
               <div className="t">{a.title}</div>
               {course && <div className="s">{course.courseCode || course.name}</div>}
             </div>
-            {a.dueAt && <span className="fl-dl">{dueLabel(a.dueAt, s.t)}</span>}
+            {a.dueAt && <span className="fl-dl">{dueLabel(a.dueAt, s.t, s.tz)}</span>}
           </div>
         );
       })}

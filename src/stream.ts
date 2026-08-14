@@ -45,10 +45,6 @@ export function toHM(min: number): string {
   return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
 }
 
-export function nowMin(now = new Date()): number {
-  return now.getHours() * 60 + now.getMinutes();
-}
-
 /**
  * Fold the day and its pending proposals into one ordered stream.
  *
@@ -158,6 +154,16 @@ export function dayOf(ms: number): string {
   const d = new Date(ms);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+/** YYYY-MM-DD for a millisecond timestamp in an IANA zone (local when empty). */
+export function dayIsoInTZ(ms: number, tz?: string): string {
+  if (!tz) return dayOf(ms);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(new Date(ms));
+  const get = (t: string) => parts.find((x) => x.type === t)?.value ?? '';
+  return `${get('year')}-${get('month')}-${get('day')}`;
 }
 
 /** Local midnight, in milliseconds, for a YYYY-MM-DD string. */

@@ -28,7 +28,7 @@ interface ChannelInfo {
 }
 import { compose, phaseOf as composePhaseOf, riverDay, type Item, type Phase, type RiverDay } from './compose';
 import { applyTheme } from './theme';
-import { addDays, fmtHM, nowMin as clockMin } from './stream';
+import { addDays, fmtHM } from './stream';
 
 // 纸屿's state. No optimistic updates, for the reason that matters MORE here
 // than anywhere else: the ledger is the whole premise. A stale block sits in a
@@ -129,6 +129,7 @@ export interface Store {
   flash: string | null;
   prefillText: string | null;
   today: string;
+  tz: string;
   nowMin: number;
   nowMs: number;
 
@@ -192,6 +193,8 @@ export function useStore(): Store {
 
 export function useAppStore(boot: Boot): Store {
   const t = boot.catalog.t;
+  // 「今天/现在」跟会话时区走，别跟浏览器走（demo 播种 vs 验收机时区不同）。
+  const TZ = api.sessionTimezone(boot.session);
   const [plans, setPlans] = useState<Record<string, DayPlan>>({});
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [moodKinds, setMoodKinds] = useState<MoodKind[]>([]);
@@ -219,8 +222,8 @@ export function useAppStore(boot: Boot): Store {
   const [undo, setUndo] = useState<UndoOffer | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [prefillText, setPrefillText] = useState<string | null>(null);
-  const [today, setToday] = useState(() => api.todayIso());
-  const [nowMin, setNowMin] = useState(() => clockMin());
+  const [today, setToday] = useState(() => api.todayIsoInTZ(TZ));
+  const [nowMin, setNowMin] = useState(() => api.nowMinutesInTZ(TZ));
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   // ⚠️ date must roll over at midnight, not freeze at mount. A ledger that
@@ -228,16 +231,16 @@ export function useAppStore(boot: Boot): Store {
   // day and re-issues writes against a date the server already left.
   useEffect(() => {
     const h = setInterval(() => {
-      setNowMin(clockMin());
+      setNowMin(api.nowMinutesInTZ(TZ));
       setNowMs(Date.now());
-      const d = api.todayIso();
+      const d = api.todayIsoInTZ(TZ);
       setToday((prev) => (prev === d ? prev : d));
     }, 30_000);
     return () => clearInterval(h);
   }, []);
 
   const refresh = useCallback(async () => {
-    const base = api.todayIso();
+    const base = api.todayIsoInTZ(TZ);
     const y = addDays(base, -1);
     const tm = addDays(base, 1);
     try {
@@ -297,7 +300,7 @@ export function useAppStore(boot: Boot): Store {
   }, [currentTheme]);
 
   const expandEarlier = useCallback(async () => {
-    const base = api.todayIso();
+    const base = api.todayIsoInTZ(TZ);
     const y = addDays(base, -1);
     // 每次往前再挖 EARLIER_BATCH 天（原型一次 5 天）。
     let earliest = y;
@@ -559,7 +562,7 @@ export function useAppStore(boot: Boot): Store {
     (b: TimeBlock) =>
       act(
         () =>
-          api.patchPlan(b.date ?? api.todayIso(), {
+          api.patchPlan(b.date ?? api.todayIsoInTZ(TZ), {
             action: 'add',
             block: {
               title: b.title,
@@ -782,6 +785,7 @@ export function useAppStore(boot: Boot): Store {
     flash,
     prefillText,
     today,
+    tz: TZ,
     nowMin,
     nowMs,
     refresh,
