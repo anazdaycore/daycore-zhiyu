@@ -224,5 +224,6 @@
   "comp.attach": "附件",
   "comp.attachBody": "上传的文件 · {n} KB",
   "comp.attachUser": "［附件］{name}",
-  "comp.empty": "跟{name}说点什么——改计划、记事情、问一句都行。"
+  "comp.empty": "跟{name}说点什么——改计划、记事情、问一句都行。",
+  "err.aiNotConfigured": "还没接上 AI——不是坏了，是这台 Daycore 还没配模型。去设置里看看，或稍后再试。"
 }

@@ -67,6 +67,11 @@ function errText(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
 }
 
+/** 503 ai_not_configured：不是坏了，是后端还没接上 AI。 */
+export function isAiNotConfigured(e: unknown): boolean {
+  return e instanceof api.ApiError && e.code === 'ai_not_configured';
+}
+
 const tz = () => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -468,8 +473,9 @@ export function useAppStore(boot: Boot): Store {
         if (!blocks.length) return { kind: 'notice', message: t('input.noBlocks') };
         return { kind: 'candidates', blocks };
       } catch (e) {
-        setError(errText(e));
-        return { kind: 'notice', message: errText(e) };
+        const msg = isAiNotConfigured(e) ? t('err.aiNotConfigured') : errText(e);
+        setError(msg);
+        return { kind: 'notice', message: msg };
       } finally {
         setBusy(false);
       }

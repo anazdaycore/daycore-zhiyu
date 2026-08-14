@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import type { CustomTheme, DecisionCardFrame, ToolResultFrame, ToolStartFrame } from '@daycore/core';
 import * as api from '@daycore/core';
 import { Icon } from './icons';
-import { useStore } from './store';
+import { isAiNotConfigured, useStore } from './store';
 import { MoodCheck } from './parts';
 import { applyTheme, BUILTIN } from './theme';
 
@@ -335,7 +335,7 @@ function Companion({ onClose }: { onClose: () => void }) {
       );
     } catch (e) {
       if (!(e instanceof DOMException && e.name === 'AbortError')) {
-        setError(e instanceof Error ? e.message : String(e));
+        setError(isAiNotConfigured(e) ? t('err.aiNotConfigured') : e instanceof Error ? e.message : String(e));
       }
       setStreaming(null);
       setTyping(false);
@@ -568,7 +568,7 @@ function Settings({ onClose }: { onClose: () => void }) {
         { id: '__preview__', familyId: 'zhiyu', name: candidate.name, dark: candidate.dark, base: candidate.base, variables: candidate.variables },
       ]);
     } catch (e) {
-      setGenErr(e instanceof Error ? e.message : String(e));
+      setGenErr(isAiNotConfigured(e) ? t('err.aiNotConfigured') : e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
