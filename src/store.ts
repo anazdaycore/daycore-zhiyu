@@ -188,8 +188,7 @@ export function useAppStore(boot: Boot): Store {
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
   const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sky');
-  // core's Session type predates personaPrompt on the wire; read it via a cast.
-  const [personaPrompt, setPersonaPromptState] = useState(() => (boot.session as { personaPrompt?: string }).personaPrompt ?? '');
+  const [personaPrompt, setPersonaPromptState] = useState(() => boot.session.personaPrompt ?? '');
   const [locale, setLocale] = useState(boot.catalog.locale);
 
   const [busy, setBusy] = useState(false);
