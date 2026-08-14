@@ -17,6 +17,7 @@ import type {
   Proposal,
   SessionPrefs,
   TimeBlock,
+  User,
   Wish,
 } from '@daycore/core';
 
@@ -160,6 +161,7 @@ export interface Store {
   deleteMaterial: (id: string) => Promise<void>;
   deleteMemory: (id: string) => Promise<void>;
   personaPrompt: string;
+  user: User | null;
   setPref: (p: Partial<SessionPrefs>) => Promise<void>;
   setTheme: (id: string) => Promise<void>;
   saveTheme: (t: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => Promise<void>;
@@ -167,6 +169,10 @@ export interface Store {
   setLanguage: (locale: string) => Promise<void>;
   setAssistantName: (name: string) => Promise<void>;
   setPersonaPrompt: (prompt: string) => Promise<void>;
+  loadUser: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, password: string, name?: string) => Promise<void>;
+  logout: () => Promise<void>;
 
   moodLabel: (id: string) => MoodKind | undefined;
   fmtHM: (ms: number) => string;
@@ -201,6 +207,7 @@ export function useAppStore(boot: Boot): Store {
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
   const [currentTheme, setCurrentTheme] = useState(api.themeForFamily(boot.session, FAMILY_ID) || 'sunset');
   const [personaPrompt, setPersonaPromptState] = useState(() => boot.session.personaPrompt ?? '');
+  const [user, setUser] = useState<User | null>(null);
   const [locale, setLocale] = useState(boot.catalog.locale);
 
   const [busy, setBusy] = useState(false);
@@ -324,6 +331,50 @@ export function useAppStore(boot: Boot): Store {
     flashTimer.current = window.setTimeout(() => setFlash(null), 3200);
   }, []);
   useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+
+  // ── account ──────────────────────────────────────────────────────────────
+  const loadUser = useCallback(async () => {
+    try {
+      const r = await api.me();
+      setUser(r.user);
+    } catch {
+      setUser(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadUser();
+  }, [loadUser]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const r = await api.login(email, password);
+      setUser(r.user);
+      await refresh();
+      await loadPanels();
+      showFlash(t('auth.welcome', { name: r.user.name || r.user.email || '' }));
+    },
+    [refresh, loadPanels, showFlash, t],
+  );
+
+  const register = useCallback(
+    async (email: string, password: string, name?: string) => {
+      const r = await api.register(email, password, name || undefined);
+      setUser(r.user);
+      await refresh();
+      await loadPanels();
+      showFlash(t('auth.welcome', { name: r.user.name || r.user.email || '' }));
+    },
+    [refresh, loadPanels, showFlash, t],
+  );
+
+  const logout = useCallback(async () => {
+    await api.logout();
+    setUser(null);
+    await refresh();
+    await loadPanels();
+    showFlash(t('auth.signedOut'));
+  }, [refresh, loadPanels, showFlash, t]);
 
   const topOpId = useCallback(async (): Promise<string | null> => {
     try {
@@ -696,6 +747,7 @@ export function useAppStore(boot: Boot): Store {
     wishes,
     memories,
     personaPrompt,
+    user,
     prefs,
     customThemes,
     channels,
@@ -740,6 +792,10 @@ export function useAppStore(boot: Boot): Store {
     setLanguage,
     setAssistantName,
     setPersonaPrompt,
+    loadUser,
+    login,
+    register,
+    logout,
     moodLabel,
     fmtHM,
   };

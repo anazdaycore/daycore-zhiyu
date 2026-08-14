@@ -556,6 +556,139 @@ function catIcon(id: string): string {
   return CAT_ICON[id] ?? 'file';
 }
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// 账户卡：已登录→头像字+姓名+邮箱·已同步+退出；未登录→匿名会话+登录/注册表单。
+function AccountSection() {
+  const s = useStore();
+  const t = s.t;
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const submit = async () => {
+    setErr('');
+    if (!EMAIL_RE.test(email.trim())) {
+      setErr(t('auth.emailInvalid'));
+      return;
+    }
+    if (password.length < 8) {
+      setErr(t('auth.passwordShort'));
+      return;
+    }
+    setBusy(true);
+    try {
+      if (mode === 'login') await s.login(email.trim(), password);
+      else await s.register(email.trim(), password, name.trim() || undefined);
+      setShowForm(false);
+      setPassword('');
+    } catch {
+      setErr(t('auth.failed'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doLogout = async () => {
+    setBusy(true);
+    try {
+      await s.logout();
+    } catch {
+      /* logout is best-effort; me() will re-read the real state */
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (s.user) {
+    const initial = (s.user.name?.[0] || s.user.email?.[0] || '?').toUpperCase();
+    return (
+      <>
+        <div className="fl-sec">{t('auth.account')}</div>
+        <div className="fl-it" style={{ alignItems: 'center' }}>
+          <span className="dc4-avatar">{initial}</span>
+          <div className="bd">
+            <div className="t">{s.user.name || s.user.email || ''}</div>
+            <div className="s">{t('auth.signedInSub', { email: s.user.email || '' })}</div>
+          </div>
+          <button className="dc4-btn sm sec" disabled={busy} onClick={() => void doLogout()}>
+            {t('auth.signOut')}
+          </button>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="fl-sec">{t('auth.account')}</div>
+      {!showForm ? (
+        <div className="fl-it" style={{ alignItems: 'center' }}>
+          <span className="dc4-avatar">?</span>
+          <div className="bd">
+            <div className="t">{t('auth.anonymous')}</div>
+            <div className="s">{t('auth.anonymousSub')}</div>
+          </div>
+          <button className="dc4-btn sm" onClick={() => setShowForm(true)}>
+            {t('auth.login')} / {t('auth.signup')}
+          </button>
+        </div>
+      ) : (
+        <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 7 }}>
+          {mode === 'signup' && (
+            <input
+              className="dc4-input"
+              style={{ height: 38, fontSize: 13 }}
+              placeholder={t('auth.namePh')}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void submit()}
+            />
+          )}
+          <input
+            className="dc4-input"
+            style={{ height: 38, fontSize: 13 }}
+            placeholder={t('auth.emailPh')}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoCapitalize="off"
+            spellCheck={false}
+            onKeyDown={(e) => e.key === 'Enter' && void submit()}
+          />
+          <input
+            className="dc4-input"
+            style={{ height: 38, fontSize: 13 }}
+            type="password"
+            placeholder={t('auth.passwordPh')}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void submit()}
+          />
+          {err && <div style={{ fontSize: 11.5, color: 'var(--dc-err)' }}>{err}</div>}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="dc4-btn" disabled={busy || !email.trim() || !password} onClick={() => void submit()}>
+              {mode === 'login' ? t('auth.submitLogin') : t('auth.submitSignup')}
+            </button>
+            <button className="dc4-btn sm sec" onClick={() => { setShowForm(false); setErr(''); }}>
+              {t('auth.cancel')}
+            </button>
+          </div>
+          <button
+            className="dc4-btn sm ghost"
+            onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setErr(''); }}
+          >
+            {mode === 'login' ? t('auth.noAccount') : t('auth.haveAccount')}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function Settings({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
@@ -661,6 +794,7 @@ function Settings({ onClose }: { onClose: () => void }) {
 
   return (
     <Panel title={t('set.title')} icon="sliders" onClose={onClose} label="settings" footer={footer}>
+      <AccountSection />
       <div className="fl-sec">{t('set.paperBuiltin')}</div>
       <div className="fl-papers">
         {BUILTIN.map((id) => (
