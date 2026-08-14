@@ -195,8 +195,15 @@ export function fmtDate(iso: string, locale: string): string {
   );
 }
 
-/** HH:MM from minutes-since-midnight, already in toHM above. */
-export function fmtHM(ms: number): string {
-  const d = new Date(ms);
-  return toHM(d.getHours() * 60 + d.getMinutes());
+/** HH:MM from a millisecond timestamp, in an IANA zone (browser-local when empty). */
+export function fmtHM(ms: number, tz?: string): string {
+  if (!tz) {
+    const d = new Date(ms);
+    return toHM(d.getHours() * 60 + d.getMinutes());
+  }
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+  }).formatToParts(new Date(ms));
+  const get = (t: string) => Number(parts.find((x) => x.type === t)?.value ?? '0');
+  return toHM(get('hour') * 60 + get('minute'));
 }

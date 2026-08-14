@@ -434,7 +434,7 @@ function L0Group({ rows }: { rows: OperationLog[] }) {
         <span className="n">{rows.length}</span>
         {t('l0.count', { n: rows.length })}
         <span style={{ marginLeft: 'auto', fontVariantNumeric: 'tabular-nums' }}>
-          {fmtHM(new Date(first.createdAt).getTime())}–{fmtHM(new Date(last.createdAt).getTime())}
+          {fmtHM(new Date(first.createdAt).getTime(), s.tz)}–{fmtHM(new Date(last.createdAt).getTime(), s.tz)}
         </span>
       </button>
       {open && (
@@ -446,7 +446,7 @@ function L0Group({ rows }: { rows: OperationLog[] }) {
               </span>
               <span className="lb">
                 {opVerb(o.action, s.t)}
-                <span className="sb">{fmtHM(new Date(o.createdAt).getTime())} · {t('op.agent')}</span>
+                <span className="sb">{fmtHM(new Date(o.createdAt).getTime(), s.tz)} · {t('op.agent')}</span>
               </span>
               <button className="un" onClick={() => void s.undoOp(o.id)}>
                 {t('op.undo')}

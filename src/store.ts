@@ -183,7 +183,7 @@ export interface Store {
   logout: () => Promise<void>;
 
   moodLabel: (id: string) => MoodKind | undefined;
-  fmtHM: (ms: number) => string;
+  fmtHM: (ms: number, tz?: string) => string;
 }
 
 export const StoreCtx = createContext<Store | null>(null);

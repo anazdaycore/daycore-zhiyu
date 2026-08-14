@@ -138,7 +138,7 @@ function Flow() {
       case 'prop':
         return (
           <div className="fl-en tone-acc" key={it.key}>
-            <span className="gut">{it.proposal.start ?? fmtHM(it.at)}</span>
+            <span className="gut">{it.proposal.start ?? fmtHM(it.at, s.tz)}</span>
             <span className="dot"></span>
             <PropInsert p={it.proposal} onFollow={() => setPanel('companion')} />
           </div>
@@ -146,7 +146,7 @@ function Flow() {
       case 'wither':
         return (
           <div className="fl-en tone-mute" key={it.key}>
-            <span className="gut">{fmtHM(it.at)}</span>
+            <span className="gut">{fmtHM(it.at, s.tz)}</span>
             <span className="dot"></span>
             <div className="fl-wither">
               <Icon n="moon" size={12} />
@@ -157,7 +157,7 @@ function Flow() {
       case 'mood':
         return (
           <div className="fl-en tone-warn" key={it.key}>
-            <span className="gut">{fmtHM(it.at)}</span>
+            <span className="gut">{fmtHM(it.at, s.tz)}</span>
             <span className="dot"></span>
             <MoodEntry m={it.mood} />
           </div>
@@ -165,7 +165,7 @@ function Flow() {
       case 'op':
         return (
           <div className="fl-en tone-mute" key={it.key}>
-            <span className="gut">{fmtHM(it.at)}</span>
+            <span className="gut">{fmtHM(it.at, s.tz)}</span>
             <span className="dot"></span>
             <OpLine op={it.op} />
           </div>
@@ -173,7 +173,7 @@ function Flow() {
       case 'l0':
         return (
           <div className="fl-en tone-mute" key={it.key}>
-            <span className="gut">{fmtHM(it.at)}</span>
+            <span className="gut">{fmtHM(it.at, s.tz)}</span>
             <span className="dot"></span>
             <L0Group rows={it.rows} />
           </div>
