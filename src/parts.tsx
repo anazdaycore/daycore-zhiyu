@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import type { MoodCheckin, OperationLog, Proposal, TimeBlock } from '@daycore/core';
+import type { MoodCheckin, MoodKind, OperationLog, Proposal, TimeBlock } from '@daycore/core';
 import { Icon } from './icons';
 import { useStore } from './store';
 import { toHM, toMin, fmtHM } from './stream';
@@ -467,7 +467,8 @@ function MoodEntry({ m }: { m: MoodCheckin }) {
 function MoodCheck({ onMore }: { onMore: () => void }) {
   const s = useStore();
   const t = s.t;
-  const kinds = s.moodKinds.slice(0, 6);
+  // 原型 flow-parts.jsx 的 quick 是 [0,1,3,5,6,8] —— 不是前 6 个，是一组刻意挑的。
+  const kinds = [0, 1, 3, 5, 6, 8].map((i) => s.moodKinds[i]).filter((k): k is MoodKind => !!k);
   return (
     <div className="fl-moodcheck" data-screen-label="mood">
       <span className="q">
