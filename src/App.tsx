@@ -231,7 +231,7 @@ function Flow() {
           <div className="fl-inputbar">
             <input
               ref={inRef}
-              placeholder={t('input.placeholder')}
+              placeholder={t('input.placeholder', { name: s.assistantName })}
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void submit()}

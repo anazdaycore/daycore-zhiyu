@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import * as api from '@daycore/core';
 import type {
   Boot,
+  ChannelBinding,
   CustomTheme,
   DayPlan,
   Material,
@@ -15,6 +16,12 @@ import type {
   TimeBlock,
   Wish,
 } from '@daycore/core';
+
+interface ChannelInfo {
+  name: string;
+  label: string;
+  available: boolean;
+}
 import { compose, phaseOf as composePhaseOf, riverDay, type Item, type Phase, type RiverDay } from './compose';
 import { applyTheme } from './theme';
 import { addDays, fmtHM, nowMin as clockMin } from './stream';
@@ -99,6 +106,8 @@ export interface Store {
   wishes: Wish[];
   prefs: SessionPrefs | null;
   customThemes: CustomTheme[];
+  channels: ChannelInfo[];
+  channelBindings: ChannelBinding[];
 
   busy: boolean;
   error: string;
@@ -142,6 +151,7 @@ export interface Store {
   deleteTheme: (id: string) => Promise<void>;
   setLanguage: (locale: string) => Promise<void>;
   setAssistantName: (name: string) => Promise<void>;
+  setPersonaPrompt: (prompt: string) => Promise<void>;
 
   moodLabel: (id: string) => MoodKind | undefined;
   fmtHM: (ms: number) => string;
@@ -169,6 +179,8 @@ export function useAppStore(boot: Boot): Store {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
+  const [channels, setChannels] = useState<ChannelInfo[]>([]);
+  const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
   const [assistantName, setAssistantNameState] = useState(boot.session.assistantName);
   const [currentTheme, setCurrentTheme] = useState(boot.session.currentTheme || 'sky');
   const [locale, setLocale] = useState(boot.catalog.locale);
@@ -225,13 +237,14 @@ export function useAppStore(boot: Boot): Store {
 
   const loadPanels = useCallback(async () => {
     try {
-      const [m, c, a, w, p, th] = await Promise.all([
+      const [m, c, a, w, p, th, ch] = await Promise.all([
         api.materials(),
         api.materialCategories(),
         api.assignments(),
         api.wishes(),
         api.preferences(),
         api.themes(),
+        api.channels(),
       ]);
       setMaterials(m.materials ?? []);
       setCategories(c.categories ?? []);
@@ -239,6 +252,8 @@ export function useAppStore(boot: Boot): Store {
       setWishes(w.wishes ?? []);
       setPrefs(p);
       setCustomThemes(th.themes ?? []);
+      setChannels(ch.channels ?? []);
+      setChannelBindings(ch.bindings ?? []);
       // The session's theme may be a custom one; once the list is here we can
       // apply its variables (boot only set the builtin fallback).
       applyTheme(currentTheme, th.themes ?? []);
@@ -574,6 +589,13 @@ export function useAppStore(boot: Boot): Store {
       .catch((e) => setError(errText(e)));
   }, []);
 
+  const setPersonaPrompt = useCallback((prompt: string) => {
+    return api
+      .patchSettings({ personaPrompt: prompt })
+      .then(() => undefined)
+      .catch((e) => setError(errText(e)));
+  }, []);
+
   const takeBack = useCallback(async () => {
     if (!undo) return;
     const id = undo.opId;
@@ -641,6 +663,8 @@ export function useAppStore(boot: Boot): Store {
     wishes,
     prefs,
     customThemes,
+    channels,
+    channelBindings,
     busy,
     error,
     undo,
@@ -679,6 +703,7 @@ export function useAppStore(boot: Boot): Store {
     deleteTheme,
     setLanguage,
     setAssistantName,
+    setPersonaPrompt,
     moodLabel,
     fmtHM,
   };

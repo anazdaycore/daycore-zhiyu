@@ -5,7 +5,7 @@ import * as api from '@daycore/core';
 import { Icon } from './icons';
 import { useStore } from './store';
 import { MoodCheck } from './parts';
-import { BUILTIN } from './theme';
+import { applyTheme, BUILTIN } from './theme';
 
 // 顺流 — 侧入口面板：伙伴 / 资料 / 展望 / 设置，加桌面常驻边栏。
 
@@ -101,7 +101,7 @@ function Materials({ onClose }: { onClose: () => void }) {
         {t('mat.lib')}
         <span className="n">{s.materials.length}</span>
       </div>
-      {s.materials.length === 0 && <div className="fl-line"><span className="lb">{t('mat.empty')}</span></div>}
+      {s.materials.length === 0 && <div className="fl-line"><span className="lb">{t('mat.empty', { name: s.assistantName })}</span></div>}
       {s.materials.map((m) => (
         <div key={m.id} className="fl-it">
           <span className="fl-tag" style={{ marginTop: 2 }}>{catName(m.category)}</span>
@@ -450,22 +450,56 @@ const BUILTIN_SW: Record<string, [string, string]> = {
   nature: ['#2e9e63', '#f4f8f4'],
 };
 
+const CH_ICON: Record<string, string> = { qq: 'chat', telegram: 'send', onebot: 'chat', slack: 'chat', wechat: 'chat', discord: 'chat' };
+const CAT_ICON: Record<string, string> = {
+  note: 'pencil',
+  diet: 'file',
+  health: 'heart',
+  academic: 'book',
+  travel: 'send',
+  finance: 'file',
+  fitness: 'refresh',
+  idea: 'sparkle',
+  shopping: 'file',
+  media: 'file',
+};
+function channelIcon(name: string): string {
+  return CH_ICON[name] ?? 'link';
+}
+function catIcon(id: string): string {
+  return CAT_ICON[id] ?? 'file';
+}
+
 function Settings({ onClose }: { onClose: () => void }) {
   const s = useStore();
   const t = s.t;
   const [name, setName] = useState(s.assistantName);
+  const [persona, setPersona] = useState('');
   const [desc, setDesc] = useState('');
   const [genErr, setGenErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [preview, setPreview] = useState<{ name: string; dark: boolean; base?: string; variables: Record<string, string> } | null>(null);
+  const [bindFor, setBindFor] = useState<{ label: string; token: string } | null>(null);
+  const [unbind, setUnbind] = useState<string | null>(null);
+  const [delId, setDelId] = useState<string | null>(null);
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
+  useEffect(() => () => { applyTheme(s.currentTheme, s.customThemes); }, [s.currentTheme, s.customThemes]);
 
   const swOf = (th: CustomTheme): [string, string] => [
     th.variables['--dc-accent'] ?? '#888',
     th.variables['--dc-surface'] ?? '#eee',
   ];
 
+  const applyT = (id: string) => {
+    setPreview(null);
+    setDelId(null);
+    void s.setTheme(id);
+  };
+
   const gen = async () => {
     const d = desc.trim();
-    if (!d) return;
+    if (!d || busy) return;
+    setBusy(true);
     setGenErr('');
     try {
       const res = await api.generateTheme(d);
@@ -473,20 +507,78 @@ function Settings({ onClose }: { onClose: () => void }) {
         setGenErr(res.message ?? res.error ?? t('set.aiErr'));
         return;
       }
-      const dark = res.variables['--dc-bg'] ? isDark(res.variables) : false;
-      await s.saveTheme({ name: d.slice(0, 12), dark, variables: res.variables });
-      setDesc('');
+      const extra = res as { name?: string; dark?: boolean; base?: string };
+      const candidate = {
+        name: (extra.name ?? d).slice(0, 24),
+        dark: Boolean(extra.dark),
+        base: extra.base,
+        variables: res.variables,
+      };
+      setPreview(candidate);
+      // Live preview, nothing saved yet: apply as a throwaway theme.
+      applyTheme('__preview__', [
+        { id: '__preview__', familyId: 'zhiyu', name: candidate.name, dark: candidate.dark, base: candidate.base, variables: candidate.variables },
+      ]);
     } catch (e) {
       setGenErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
     }
   };
 
+  const cancelP = () => {
+    setPreview(null);
+    applyTheme(s.currentTheme, s.customThemes);
+  };
+
+  const saveP = async () => {
+    if (!preview) return;
+    await s.saveTheme({ name: preview.name, base: preview.base, dark: preview.dark, variables: preview.variables });
+    setPreview(null);
+    setDesc('');
+  };
+
+  const bind = async (ch: { name: string; label: string }) => {
+    try {
+      const r = await api.bindChannel(ch.name);
+      setBindFor({ label: ch.label || ch.name, token: r.token });
+    } catch {
+      setBindFor(null);
+    }
+  };
+
+  const doUnbind = async (chName: string) => {
+    setUnbind(null);
+    try {
+      await api.unbindChannel(chName);
+      await s.loadPanels();
+    } catch {
+      /* loadPanels re-reads the real binding state */
+    }
+  };
+
+  const footer = preview ? (
+    <div className="fl-prevrow">
+      <Icon n="wand" size={15} style={{ color: 'var(--dc-accent)', flex: 'none' }} />
+      <span className="nm">{t('set.aiPreview', { name: preview.name })}</span>
+      <button className="dc4-btn sm sec" onClick={() => void gen()} disabled={busy}>
+        {busy ? '…' : t('set.aiRetry')}
+      </button>
+      <button className="dc4-btn sm sec" onClick={cancelP}>
+        {t('set.aiCancel')}
+      </button>
+      <button className="dc4-btn sm" onClick={() => void saveP()}>
+        {t('set.aiSave')}
+      </button>
+    </div>
+  ) : undefined;
+
   return (
-    <Panel title={t('set.title')} icon="sliders" onClose={onClose} label="settings">
+    <Panel title={t('set.title')} icon="sliders" onClose={onClose} label="settings" footer={footer}>
       <div className="fl-sec">{t('set.paperBuiltin')}</div>
       <div className="fl-papers">
         {BUILTIN.map((id) => (
-          <button key={id} className={'fl-paper' + (s.currentTheme === id ? ' on' : '')} onClick={() => void s.setTheme(id)}>
+          <button key={id} className={'fl-paper' + (s.currentTheme === id ? ' on' : '')} onClick={() => applyT(id)}>
             <span className="sw" style={{ background: BUILTIN_SW[id]![1] }}>
               <i style={{ background: BUILTIN_SW[id]![0] }}></i>
             </span>
@@ -516,15 +608,29 @@ function Settings({ onClose }: { onClose: () => void }) {
               <div className="t" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 {th.name}
                 {th.dark && <span className="fl-tag">{t('paper.dark')}</span>}
+                {s.currentTheme === th.id && <Icon n="check" size={12} style={{ color: 'var(--dc-accent)' }} />}
               </div>
             </div>
             {s.currentTheme !== th.id && (
-              <button className="x" style={{ opacity: 1, color: 'var(--dc-accent)', fontSize: 11.5, fontWeight: 650 }} onClick={() => void s.setTheme(th.id)}>
+              <button className="x" style={{ opacity: 1, color: 'var(--dc-accent)', fontSize: 11.5, fontWeight: 650 }} onClick={() => applyT(th.id)}>
                 {t('set.apply')}
               </button>
             )}
-            <button className="x" title={t('set.delete')} onClick={() => void s.deleteTheme(th.id)}>
-              <Icon n="trash" size={13} />
+            <button
+              className="x"
+              title={t('set.delete')}
+              style={delId === th.id ? { opacity: 1, color: 'var(--dc-err)', fontSize: 11, fontWeight: 700 } : undefined}
+              onClick={() => {
+                if (delId !== th.id) {
+                  setDelId(th.id);
+                  setTimeout(() => setDelId((d) => (d === th.id ? null : d)), 2600);
+                  return;
+                }
+                void s.deleteTheme(th.id);
+                setDelId(null);
+              }}
+            >
+              {delId === th.id ? t('set.deleteConfirm') : <Icon n="trash" size={13} />}
             </button>
           </div>
         );
@@ -544,9 +650,9 @@ function Settings({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => e.key === 'Enter' && void gen()}
         />
         {genErr && <div style={{ fontSize: 11.5, color: 'var(--dc-err)' }}>{genErr}</div>}
-        <button className="dc4-btn" disabled={!desc.trim()} onClick={() => void gen()}>
+        <button className="dc4-btn" disabled={busy || !desc.trim()} onClick={() => void gen()}>
           <Icon n="sparkle" size={14} />
-          {t('set.aiGen')}
+          {busy ? t('set.aiGenBusy') : t('set.aiGen')}
         </button>
       </div>
 
@@ -566,6 +672,23 @@ function Settings({ onClose }: { onClose: () => void }) {
           onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         />
       </div>
+      <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 650 }}>
+          <Icon n="sparkle" size={14} style={{ color: 'var(--dc-accent)' }} />
+          {t('set.personaTitle')}
+        </div>
+        <div style={{ fontSize: 11.5, color: 'var(--dc-ink-3)' }}>{t('set.personaSub')}</div>
+        <textarea
+          className="fl-ta"
+          rows={4}
+          maxLength={2000}
+          placeholder={t('set.personaPlaceholder')}
+          value={persona}
+          onChange={(e) => setPersona(e.target.value)}
+          onBlur={() => void s.setPersonaPrompt(persona)}
+        ></textarea>
+        <div style={{ fontSize: 10.5, color: 'var(--dc-ink-3)' }}>{t('set.personaCount', { n: persona.length })}</div>
+      </div>
 
       <div className="fl-sec">{t('set.care')}</div>
       {PREFS.map((p) => (
@@ -584,6 +707,78 @@ function Settings({ onClose }: { onClose: () => void }) {
         </div>
       ))}
 
+      {/* 通知渠道：只读列出 + 绑定/解绑（verify 是机器人侧，前端不代做） */}
+      <div className="fl-sec">{t('set.channels')}</div>
+      {s.channels.map((ch) => {
+        const binding = s.channelBindings.find((b) => b.channel === ch.name);
+        return (
+          <div key={ch.name} className="fl-it" style={{ alignItems: 'center' }}>
+            <Icon n={channelIcon(ch.name)} size={15} style={{ color: 'var(--dc-accent)', flex: 'none' }} />
+            <div className="bd">
+              <div className="t">{ch.label || ch.name}{binding ? ' · ' + t('set.channelBound') : ''}</div>
+              <div className="s">{binding ? binding.externalId : t('set.channelUnbound')}</div>
+            </div>
+            {binding ? (
+              <button
+                className="dc4-btn sm sec"
+                onClick={() => {
+                  if (unbind !== ch.name) {
+                    setUnbind(ch.name);
+                    setTimeout(() => setUnbind((u) => (u === ch.name ? null : u)), 2600);
+                    return;
+                  }
+                  void doUnbind(ch.name);
+                }}
+              >
+                {unbind === ch.name ? t('set.channelConfirmUnbind') : t('set.channelUnbind')}
+              </button>
+            ) : (
+              <button className="dc4-btn sm" onClick={() => void bind(ch)}>
+                {t('set.channelBind')}
+              </button>
+            )}
+          </div>
+        );
+      })}
+      {bindFor && (
+        <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+          <div style={{ fontSize: 12, color: 'var(--dc-ink-2)' }}>{t('set.channelToken', { name: bindFor.label })}</div>
+          <div className="fl-token">
+            <Icon n="key" size={14} style={{ color: 'var(--dc-accent)' }} />
+            <span style={{ flex: 1 }}>{bindFor.token}</span>
+            <button className="x" style={{ opacity: 1 }} onClick={() => { try { void navigator.clipboard.writeText(bindFor.token); } catch { /* noop */ } }}>
+              <Icon n="copy" size={13} />
+            </button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button className="dc4-btn sm sec" onClick={() => setBindFor(null)}>{t('set.channelCancel')}</button>
+          </div>
+        </div>
+      )}
+      <div className="fl-line" style={{ color: 'var(--dc-ink-3)' }}><span className="lb">{t('set.channelBudget')}</span></div>
+
+      {/* 记录类别：note 是基础类别不可关（后端拒 note:false） */}
+      <div className="fl-sec">{t('set.categories')}</div>
+      {s.categories.map((c) => (
+        <div key={c.id} className="fl-it" style={{ alignItems: 'center' }}>
+          <Icon n={catIcon(c.id)} size={15} style={{ color: 'var(--dc-accent)', flex: 'none' }} />
+          <div className="bd">
+            <div className="t">{c.name}</div>
+            {c.id === 'note' && <div className="s">{t('set.categoryLocked')}</div>}
+          </div>
+          {c.id === 'note' ? (
+            <Icon n="check" size={14} style={{ color: 'var(--dc-ink-3)' }} />
+          ) : (
+            <button
+              className={'fl-switch' + (c.enabled ? ' on' : '')}
+              role="switch"
+              aria-checked={c.enabled}
+              onClick={() => void s.setPref({ materialCategories: { [c.id]: !c.enabled } })}
+            ></button>
+          )}
+        </div>
+      ))}
+
       <div className="fl-sec">{t('set.language')}</div>
       <div className="fl-seg">
         {s.availableLocales.map((loc) => (
@@ -593,26 +788,13 @@ function Settings({ onClose }: { onClose: () => void }) {
         ))}
       </div>
 
+      {/* 作息节律 / 演示场景 / 重新播种：无前端端点（节律为服务端学习态、场景为 mock），
+          按「诚实呈现」原则省略，不搭空壳 —— 见 flow-settings.jsx 对应段。 */}
       <div className="fl-line" style={{ marginTop: 14 }}>
         <span className="lb">{t('set.about', { name: s.assistantName })}</span>
       </div>
     </Panel>
   );
-}
-
-function isDark(v: Record<string, string>): boolean {
-  const bg = v['--dc-bg'];
-  if (!bg) return false;
-  const m = bg.match(/rgb((d+),s*(d+),s*(d+))/);
-  if (m) return (Number(m[1]) + Number(m[2]) + Number(m[3])) / 3 < 128;
-  const hex = bg.replace('#', '');
-  if (hex.length === 6) {
-    const r = parseInt(hex.slice(0, 2), 16);
-    const g = parseInt(hex.slice(2, 4), 16);
-    const b = parseInt(hex.slice(4, 6), 16);
-    return (r + g + b) / 3 < 128;
-  }
-  return false;
 }
 
 function Rail({ onMore }: { onMore: () => void }) {
