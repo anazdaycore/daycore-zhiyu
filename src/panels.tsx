@@ -1033,6 +1033,27 @@ function Settings({ onClose }: { onClose: () => void }) {
         </div>
       ))}
 
+      <div className="fl-sec">{t('set.rhythm')}</div>
+      {s.rhythm && (
+        <div className="fl-it" style={{ alignItems: 'center' }}>
+          <Icon n="moon" size={15} style={{ color: 'var(--dc-accent)', flex: 'none' }} />
+          <div className="bd">
+            <div className="t">{t('set.rhythmAbout', { sleep: s.rhythm.sleep, wake: s.rhythm.wake })}</div>
+            <div className="s">{s.rhythm.source === 'pinned' ? t('set.rhythmPinned') : t('set.rhythmLearned')}</div>
+          </div>
+          {s.rhythm.source === 'pinned' ? (
+            <Icon n="check" size={14} style={{ color: 'var(--dc-ok)' }} />
+          ) : (
+            <button
+              className="dc4-btn sm sec"
+              onClick={() => void s.pinRhythm(s.rhythm!.wake, s.rhythm!.sleep)}
+            >
+              {t('set.rhythmPin')}
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="fl-sec">{t('set.language')}</div>
       <div className="fl-seg">
         {s.availableLocales.map((loc) => (

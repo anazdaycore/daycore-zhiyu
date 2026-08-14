@@ -177,7 +177,6 @@
   "undo.removed": "移走：{title}",
   "undo.noted": "注释：{title}",
   "undo.conflict": "标记冲突：{title}",
-  "undo.refished": "重新安排：{title}",
   "undo.locked": "改锁：{title}",
   "undo.mood": "心情记下了",
   "undo.added": "放进流里：{title}",
@@ -249,5 +248,11 @@
   "auth.signedOut": "已退出，回到匿名会话",
   "menu.rescheduleByText": "一句话改期…",
   "menu.reschedulePrefill": "把「{title}」改到…",
-  "set.rename": "重命名"
+  "set.rename": "重命名",
+  "set.rhythm": "作息节律",
+  "set.rhythmAbout": "约 {sleep} 睡 · {wake} 起",
+  "set.rhythmLearned": "学来的，不是设置的——auto-plan 跑在你入睡后的静默窗",
+  "set.rhythmPinned": "已钉住——按你说的来",
+  "set.rhythmPin": "钉住",
+  "menu.rescheduleProposed": "明天见，点头就排上"
 }

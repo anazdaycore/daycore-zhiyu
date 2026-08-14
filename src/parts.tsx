@@ -303,7 +303,7 @@ function EntryMenu({
         {phase === 'stone' ? (
           <button
             onClick={() => {
-              void s.refish(b, date);
+              void s.proposeReschedule(b.id);
               onClose();
             }}
           >

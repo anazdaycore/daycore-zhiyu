@@ -177,7 +177,6 @@
   "undo.removed": "Removed: {title}",
   "undo.noted": "Noted: {title}",
   "undo.conflict": "Marked conflict: {title}",
-  "undo.refished": "Rescheduled: {title}",
   "undo.locked": "Lock changed: {title}",
   "undo.mood": "Mood logged",
   "undo.added": "Placed in the stream: {title}",
@@ -249,5 +248,11 @@
   "auth.signedOut": "Signed out — back to anonymous",
   "menu.rescheduleByText": "Reschedule by text…",
   "menu.reschedulePrefill": "Move \"{title}\" to…",
-  "set.rename": "Rename"
+  "set.rename": "Rename",
+  "set.rhythm": "Rhythm",
+  "set.rhythmAbout": "about {sleep} sleep · {wake} wake",
+  "set.rhythmLearned": "Learned, not set — auto-plan runs in your quiet window after you sleep",
+  "set.rhythmPinned": "Pinned — going by what you said",
+  "set.rhythmPin": "Pin",
+  "menu.rescheduleProposed": "See you tomorrow — nod and it's scheduled"
 }

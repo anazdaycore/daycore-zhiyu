@@ -15,6 +15,7 @@ import type {
   MoodKind,
   OperationLog,
   Proposal,
+  Rhythm,
   SessionPrefs,
   TimeBlock,
   User,
@@ -119,6 +120,7 @@ export interface Store {
   wishes: Wish[];
   memories: MemoryFact[];
   prefs: SessionPrefs | null;
+  rhythm: Rhythm | null;
   customThemes: CustomTheme[];
   channels: ChannelInfo[];
   channelBindings: ChannelBinding[];
@@ -149,7 +151,7 @@ export interface Store {
   removeBlock: (b: TimeBlock, date: string) => Promise<BlockEdit>;
   setNote: (b: TimeBlock, date: string, note: string) => Promise<void>;
   markConflict: (b: TimeBlock, date: string) => Promise<void>;
-  refish: (b: TimeBlock, date: string) => Promise<BlockEdit>;
+  proposeReschedule: (blockId: string) => Promise<void>;
   setLock: (b: TimeBlock, date: string, level: 'none' | 'soft' | 'hard') => Promise<BlockEdit>;
 
   answer: (p: Proposal, accept: boolean) => Promise<void>;
@@ -167,6 +169,7 @@ export interface Store {
   personaPrompt: string;
   user: User | null;
   setPref: (p: Partial<SessionPrefs>) => Promise<void>;
+  pinRhythm: (wake: string, sleep: string) => Promise<void>;
   setTheme: (id: string) => Promise<void>;
   saveTheme: (t: { name: string; base?: string; dark?: boolean; variables: Record<string, string> }) => Promise<void>;
   deleteTheme: (id: string) => Promise<void>;
@@ -208,6 +211,7 @@ export function useAppStore(boot: Boot): Store {
   const [wishes, setWishes] = useState<Wish[]>([]);
   const [memories, setMemories] = useState<MemoryFact[]>([]);
   const [prefs, setPrefs] = useState<SessionPrefs | null>(null);
+  const [rhythm, setRhythm] = useState<Rhythm | null>(null);
   const [customThemes, setCustomThemes] = useState<CustomTheme[]>([]);
   const [channels, setChannels] = useState<ChannelInfo[]>([]);
   const [channelBindings, setChannelBindings] = useState<ChannelBinding[]>([]);
@@ -270,7 +274,7 @@ export function useAppStore(boot: Boot): Store {
 
   const loadPanels = useCallback(async () => {
     try {
-      const [m, c, a, co, w, mem, p, th, ch] = await Promise.all([
+      const [m, c, a, co, w, mem, p, th, ch, rh] = await Promise.all([
         api.materials(),
         api.materialCategories(),
         api.assignments(),
@@ -280,6 +284,7 @@ export function useAppStore(boot: Boot): Store {
         api.preferences(),
         api.themes(),
         api.channels(),
+        api.rhythm(),
       ]);
       setMaterials(m.materials ?? []);
       setCategories(c.categories ?? []);
@@ -291,6 +296,7 @@ export function useAppStore(boot: Boot): Store {
       setCustomThemes(th.themes ?? []);
       setChannels(ch.channels ?? []);
       setChannelBindings(ch.bindings ?? []);
+      setRhythm(rh);
       // The session's theme may be a custom one; once the list is here we can
       // apply its variables (boot only set the builtin fallback).
       applyTheme(currentTheme, th.themes ?? []);
@@ -491,20 +497,19 @@ export function useAppStore(boot: Boot): Store {
     [act, t],
   );
 
-  const refish = useCallback(
-    (b: TimeBlock, date: string) =>
-      act(
-        () =>
-          api.refishBlock(date, {
-            title: b.title,
-            type: b.type,
-            time: b.time,
-            duration_min: b.duration_min,
-            rescheduled_from: b.id,
-          }),
-        t('undo.refished', { title: b.title }),
-      ),
-    [act, t],
+  // 重新安排 = 投一个 pending timed 提案（明天同时段 ghost），用户点头才落地。
+  const proposeReschedule = useCallback(
+    async (blockId: string) => {
+      try {
+        await api.proposeReschedule(blockId);
+        await refresh();
+        showFlash(t('menu.rescheduleProposed'));
+      } catch (e) {
+        setError(errText(e));
+        await refresh();
+      }
+    },
+    [refresh, showFlash, t],
   );
 
   const setLock = useCallback(
@@ -680,6 +685,18 @@ export function useAppStore(boot: Boot): Store {
     [],
   );
 
+  const pinRhythm = useCallback(
+    async (wake: string, sleep: string) => {
+      try {
+        const r = await api.pinRhythm(wake, sleep);
+        setRhythm(r);
+      } catch (e) {
+        setError(errText(e));
+      }
+    },
+    [],
+  );
+
   const setLanguage = useCallback(async (loc: string) => {
     api.chooseLocale(loc);
     setLocale(loc);
@@ -776,6 +793,7 @@ export function useAppStore(boot: Boot): Store {
     personaPrompt,
     user,
     prefs,
+    rhythm,
     customThemes,
     channels,
     channelBindings,
@@ -803,7 +821,7 @@ export function useAppStore(boot: Boot): Store {
     removeBlock,
     setNote,
     markConflict,
-    refish,
+    proposeReschedule,
     setLock,
     answer,
     take,
@@ -817,6 +835,7 @@ export function useAppStore(boot: Boot): Store {
     deleteMaterial,
     deleteMemory,
     setPref,
+    pinRhythm,
     setTheme,
     saveTheme,
     deleteTheme,
