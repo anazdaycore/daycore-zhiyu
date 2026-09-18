@@ -57,6 +57,26 @@ function Materials({ onClose }: { onClose: () => void }) {
   const [body, setBody] = useState('');
   const [cat, setCat] = useState('note');
   useEffect(() => { void s.loadPanels(); }, [s.loadPanels]);
+  // 导入令牌：浏览器插件用它把 Canvas 数据直推过来。
+  const [token, setToken] = useState('');
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    void api.importToken().then((r) => setToken(r.token ?? ''), () => { /* 读不到就显示未生成 */ });
+  }, []);
+  const rotateToken = () => {
+    setTokenBusy(true);
+    void api.rotateImportToken().then(
+      (r) => { setToken(r.token ?? ''); setTokenBusy(false); },
+      () => setTokenBusy(false),
+    );
+  };
+  const copyToken = () => {
+    void navigator.clipboard.writeText(token).then(
+      () => { setCopied(true); window.setTimeout(() => setCopied(false), 1600); },
+      () => { /* 剪贴板不可用（非安全上下文）时令牌仍可手动选中 */ },
+    );
+  };
   const catName = (id: string) => s.categories.find((c) => c.id === id)?.name ?? id;
   const memSource = (source: string): string | null => {
     if (source === 'user') return t('mat.memUser');
@@ -73,6 +93,25 @@ function Materials({ onClose }: { onClose: () => void }) {
   };
   return (
     <Panel title={t('mat.title')} icon="book" onClose={onClose} label="materials">
+      <div className="fl-sec">{t('mat.importSection')}</div>
+      <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 7 }}>
+        <div className="lb" style={{ fontSize: 12, color: 'var(--ink3)' }}>{t('mat.tokenDesc')}</div>
+        <div style={{ display: 'flex', gap: 7, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span
+            className="dc4-input"
+            style={{ flex: '1 1 160px', height: 34, display: 'flex', alignItems: 'center', padding: '0 10px', fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >{token || t('mat.tokenNone')}</span>
+          <button className="dc4-btn" disabled={tokenBusy} onClick={rotateToken}>
+            {token ? t('mat.tokenRotate') : t('mat.tokenGenerate')}
+          </button>
+          {token !== '' && (
+            <button className="dc4-btn" onClick={copyToken}>
+              {copied ? t('mat.tokenCopied') : t('mat.tokenCopy')}
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="fl-sec">{t('mat.addSection')}</div>
       <div className="fl-it" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 7 }}>
         <input
